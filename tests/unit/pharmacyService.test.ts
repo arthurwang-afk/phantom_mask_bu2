@@ -71,3 +71,27 @@ describe('PharmacyService.listMasks', () => {
     await expect(pharmacyService.listMasks(999)).rejects.toMatchObject({ statusCode: 404 })
   })
 })
+
+describe('PharmacyService.upsertPharmacyMasks', () => {
+  const mockMasks = [
+    { name: '棉吻（黑色）3入', price: 15, stockQuantity: 100 },
+    { name: '醫士（藍色）6入', price: 25, stockQuantity: 50 },
+  ]
+
+  it('calls upsertMasks with correct args and returns result', async () => {
+    vi.mocked(repo.findPharmacyById).mockResolvedValue(mockPharmacies[0] as any)
+    vi.mocked(repo.upsertMasks).mockResolvedValue(mockMasks as any)
+    const result = await pharmacyService.upsertPharmacyMasks(1, mockMasks)
+    expect(repo.findPharmacyById).toHaveBeenCalledWith(1)
+    expect(repo.upsertMasks).toHaveBeenCalledWith(1, mockMasks)
+    expect(result).toEqual(mockMasks)
+  })
+
+  it('throws 404 when pharmacy not found', async () => {
+    vi.mocked(repo.findPharmacyById).mockResolvedValue(null)
+    await expect(pharmacyService.upsertPharmacyMasks(999, mockMasks)).rejects.toMatchObject({
+      statusCode: 404,
+    })
+    expect(repo.upsertMasks).not.toHaveBeenCalled()
+  })
+})
