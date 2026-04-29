@@ -10,15 +10,50 @@
 **前置需求：已安裝並啟動 [Docker Desktop](https://www.docker.com/products/docker-desktop/)**
 
 ```bash
-# 1. Clone 專案
 git clone https://gitlab.com/think4u-internal/pharmamask.git
 cd pharmamask
-
-# 2. 啟動（自動完成：建立 DB → migrate → seed → 啟動 server）
-docker compose up
 ```
 
-啟動完成後：
+### Windows
+
+```bat
+start.bat
+```
+
+### macOS / Linux
+
+```bash
+chmod +x start.sh
+./start.sh
+```
+
+腳本會自動完成以下所有步驟，**完成後自動開啟瀏覽器**：
+
+| 步驟 | 內容 |
+|------|------|
+| 1 | 啟動 PostgreSQL 16 容器 |
+| 2 | `prisma migrate deploy` — 建立所有資料表與 Index |
+| 3 | `npm run seed` — 匯入繁體中文假資料（藥局、口罩、使用者、購買歷史） |
+| 4 | 啟動 Fastify API server |
+| 5 | 偵測到 server 就緒後，自動開啟 http://localhost:3000 |
+
+> 首次啟動需下載 Docker image 並初始化資料庫，約需 **30–60 秒**。  
+> 之後再啟動因資料已存在（upsert 機制），速度更快。
+
+---
+
+### 已匯入的假資料
+
+| 資料 | 數量 |
+|------|------|
+| 藥局 | 20 家（含繁體中文名稱、營業時間） |
+| 口罩 | 95 種（含中文品牌名、顏色、包裝規格） |
+| 使用者 | 20 人（含繁體中文姓名） |
+| 購買歷史 | 101 筆（2024-12 ～ 2025-01） |
+
+---
+
+### 服務網址
 
 | 服務 | 網址 |
 |------|------|
@@ -26,18 +61,12 @@ docker compose up
 | Swagger UI | http://localhost:3000/docs |
 | API Health | http://localhost:3000/healthz |
 
-> `docker compose up` 會依序自動執行：
-> 1. 啟動 PostgreSQL 16
-> 2. `prisma migrate deploy` — 建立資料表與 Index
-> 3. `npm run seed` — 匯入藥局、口罩、使用者、購買歷史（繁體中文）
-> 4. 啟動 Fastify server
+---
 
-背景執行請加 `-d`：
+### 停止服務
 
 ```bash
-docker compose up -d
-docker compose logs -f app   # 查看 log
-docker compose down           # 停止並移除容器
+docker compose down
 ```
 
 ---
@@ -66,8 +95,6 @@ npm run seed
 # 6. 啟動開發 server（熱重載）
 npm run dev
 ```
-
-> 若是第一次初始化，可改用 `npx prisma migrate dev` 讓 Prisma 自動管理 migration 歷史。
 
 ---
 
@@ -108,9 +135,6 @@ npm test
 
 # 產生 coverage 報告
 npm run test:coverage
-
-# 監聽模式
-npm run test:watch
 ```
 
 Coverage 實際數值：
@@ -123,29 +147,29 @@ Coverage 實際數值：
 
 ```
 pharmamask/
-├── src/
-│   ├── app.ts              # Fastify app factory（plugins、routes 註冊）
-│   ├── server.ts           # 進入點（listen）
-│   ├── prisma.ts           # Prisma client singleton
-│   ├── routes/             # HTTP route handlers（5 模組）
-│   ├── services/           # 商業邏輯層（5 模組）
-│   ├── repositories/       # 資料存取層，Prisma queries（4 模組）
-│   ├── schemas/            # Fastify JSON Schema 驗證（5 模組）
-│   └── public/
-│       └── index.html      # 前端 SPA（純 HTML/CSS/JS，RWD）
-├── prisma/
-│   ├── schema.prisma       # 5 個資料模型定義
-│   ├── migrations/         # SQL migration（含 GIN index）
-│   └── seed/               # ETL 腳本（解析 openingHours、upsert）
-├── tests/
-│   ├── unit/               # 單元測試（mock repository）
-│   ├── integration/        # 整合測試（Fastify inject，不需 DB）
-│   └── setup.ts
-├── data/
-│   ├── pharmacies.json     # 20 家藥局種子資料（繁體中文）
-│   └── users.json          # 20 位使用者種子資料（繁體中文）
+├── start.bat               # Windows 一鍵啟動腳本
+├── start.sh                # macOS/Linux 一鍵啟動腳本
 ├── docker-compose.yml      # PostgreSQL + app（含自動 migrate & seed）
 ├── Dockerfile              # Multi-stage build
+├── src/
+│   ├── app.ts              # Fastify app factory
+│   ├── server.ts           # 進入點
+│   ├── routes/             # HTTP route handlers
+│   ├── services/           # 商業邏輯層
+│   ├── repositories/       # 資料存取層（Prisma）
+│   ├── schemas/            # JSON Schema 驗證
+│   └── public/
+│       └── index.html      # 前端 SPA（RWD，純 HTML/CSS/JS）
+├── prisma/
+│   ├── schema.prisma       # 資料模型
+│   ├── migrations/         # SQL migrations（含 GIN index）
+│   └── seed/               # ETL 腳本
+├── tests/
+│   ├── unit/               # 單元測試（mock repository）
+│   └── integration/        # 整合測試（Fastify inject）
+├── data/
+│   ├── pharmacies.json     # 藥局種子資料（繁體中文）
+│   └── users.json          # 使用者種子資料（繁體中文）
 ├── .env.example
 └── response.md             # 技術決策說明文件
 ```
@@ -156,7 +180,7 @@ pharmamask/
 
 - **Runtime** — Node.js 20 + TypeScript (ESM)
 - **Framework** — Fastify 4
-- **ORM** — Prisma 5（PostgreSQL）
+- **ORM** — Prisma 5（PostgreSQL 16）
 - **Testing** — Vitest + `app.inject()`
 - **Container** — Docker Compose
 - **API Docs** — `@fastify/swagger-ui`
