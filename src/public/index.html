@@ -1,0 +1,1354 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PharmaMask — 藥局口罩平台</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── Variables ── */
+    :root {
+      --primary: #00897B;
+      --primary-dark: #00695C;
+      --primary-light: #E0F2F1;
+      --primary-mid: #26A69A;
+      --accent: #FF7043;
+      --bg: #F0F4F8;
+      --card: #FFFFFF;
+      --text: #1A2332;
+      --text-muted: #6B7280;
+      --border: #E2E8F0;
+      --shadow: 0 2px 12px rgba(0,0,0,0.07);
+      --shadow-hover: 0 6px 24px rgba(0,137,123,0.15);
+      --radius: 14px;
+      --radius-sm: 8px;
+      --nav-h: 64px;
+      --tab-bar-h: 60px;
+    }
+
+    /* ── Reset ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    button { cursor: pointer; border: none; background: none; font-family: inherit; }
+    input, select, textarea { font-family: inherit; }
+    a { color: inherit; text-decoration: none; }
+    ul { list-style: none; }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #CBD5E0; border-radius: 3px; }
+
+    /* ── Navbar ── */
+    .navbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      height: var(--nav-h);
+      background: var(--primary);
+      display: flex; align-items: center; gap: 12px;
+      padding: 0 24px;
+      box-shadow: 0 2px 12px rgba(0,105,92,0.3);
+    }
+    .navbar-logo {
+      display: flex; align-items: center; gap: 8px;
+      color: #fff; font-size: 1.2rem; font-weight: 700; white-space: nowrap;
+    }
+    .navbar-logo span { font-size: 1.5rem; }
+    .search-wrap {
+      flex: 1; max-width: 480px; position: relative;
+    }
+    .search-wrap input {
+      width: 100%; padding: 9px 16px 9px 40px;
+      border-radius: 24px; border: none;
+      background: rgba(255,255,255,0.18); color: #fff;
+      font-size: 0.9rem; outline: none;
+      transition: background 0.2s;
+    }
+    .search-wrap input::placeholder { color: rgba(255,255,255,0.7); }
+    .search-wrap input:focus { background: rgba(255,255,255,0.28); }
+    .search-icon {
+      position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+      color: rgba(255,255,255,0.8); font-size: 1rem; pointer-events: none;
+    }
+    .navbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+    .status-dot {
+      display: flex; align-items: center; gap: 6px;
+      color: rgba(255,255,255,0.85); font-size: 0.78rem;
+    }
+    .status-dot i {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #A5D6A7; box-shadow: 0 0 0 2px rgba(165,214,167,0.4);
+    }
+    .status-dot i.offline { background: #EF9A9A; box-shadow: 0 0 0 2px rgba(239,154,154,0.4); }
+    .hamburger {
+      display: none; flex-direction: column; gap: 5px; padding: 4px;
+      color: #fff;
+    }
+    .hamburger span { display: block; width: 22px; height: 2px; background: #fff; border-radius: 2px; transition: all 0.3s; }
+
+    /* ── Desktop Tab Bar ── */
+    .tab-bar {
+      position: fixed; top: var(--nav-h); left: 0; right: 0; z-index: 90;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .tab-btn {
+      flex: 1; padding: 14px 8px; font-size: 0.85rem; font-weight: 500;
+      color: var(--text-muted); border-bottom: 3px solid transparent;
+      transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .tab-btn:hover { color: var(--primary); background: var(--primary-light); }
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); background: var(--primary-light); }
+    .tab-btn .badge {
+      background: var(--accent); color: #fff;
+      font-size: 0.7rem; font-weight: 700;
+      padding: 1px 6px; border-radius: 10px; min-width: 18px; text-align: center;
+    }
+
+    /* ── Main Content ── */
+    .main {
+      padding-top: calc(var(--nav-h) + 49px + 24px);
+      padding-bottom: 32px;
+      min-height: 100vh;
+    }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+    /* ── Section Header ── */
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px; flex-wrap: wrap; gap: 12px;
+    }
+    .section-title { font-size: 1.25rem; font-weight: 700; color: var(--text); }
+    .section-title span { color: var(--primary); }
+
+    /* ── Filter Bar ── */
+    .filter-bar {
+      background: var(--card); border-radius: var(--radius);
+      padding: 16px 20px; margin-bottom: 20px;
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      box-shadow: var(--shadow);
+    }
+    .filter-bar label { font-size: 0.82rem; color: var(--text-muted); font-weight: 500; }
+    .filter-bar select, .filter-bar input[type=time] {
+      padding: 7px 12px; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+      font-size: 0.85rem; color: var(--text); outline: none;
+      transition: border-color 0.2s;
+    }
+    .filter-bar select:focus, .filter-bar input:focus { border-color: var(--primary); }
+    .btn {
+      padding: 8px 18px; border-radius: var(--radius-sm);
+      font-size: 0.85rem; font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,137,123,0.3); }
+    .btn-outline { border: 1.5px solid var(--primary); color: var(--primary); }
+    .btn-outline:hover { background: var(--primary-light); }
+    .btn-ghost { color: var(--text-muted); }
+    .btn-ghost:hover { background: var(--border); border-radius: var(--radius-sm); }
+    .btn-sm { padding: 5px 12px; font-size: 0.78rem; }
+    .btn-danger { background: #EF5350; color: #fff; }
+    .btn-danger:hover { background: #D32F2F; }
+    .btn-accent { background: var(--accent); color: #fff; }
+    .btn-accent:hover { background: #E64A19; }
+
+    /* ── Pharmacy Grid ── */
+    .pharmacy-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+    .pharmacy-card {
+      background: var(--card); border-radius: var(--radius);
+      box-shadow: var(--shadow); overflow: hidden;
+      transition: all 0.25s; border: 1.5px solid transparent;
+      cursor: pointer;
+    }
+    .pharmacy-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-hover); border-color: var(--primary-light); }
+    .pharmacy-card.expanded { border-color: var(--primary); }
+    .pharmacy-card-header {
+      padding: 18px 20px; display: flex; align-items: flex-start; justify-content: space-between;
+    }
+    .pharmacy-name { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
+    .pharmacy-balance { font-size: 0.78rem; color: var(--text-muted); }
+    .open-badge {
+      padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .open-badge.open { background: #E8F5E9; color: #2E7D32; }
+    .open-badge.closed { background: #FFEBEE; color: #C62828; }
+    .pharmacy-icon {
+      width: 40px; height: 40px; border-radius: 10px;
+      background: var(--primary-light); color: var(--primary);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem; flex-shrink: 0; margin-right: 12px;
+    }
+    .pharmacy-info { display: flex; align-items: flex-start; gap: 0; }
+    .pharmacy-card-body { border-top: 1px solid var(--border); overflow: hidden; max-height: 0; transition: max-height 0.4s ease; }
+    .pharmacy-card-body.open { max-height: 600px; }
+
+    /* ── Mask List ── */
+    .mask-list-header {
+      padding: 12px 20px; display: flex; align-items: center; justify-content: space-between;
+      background: var(--bg);
+    }
+    .sort-toggle { display: flex; gap: 6px; }
+    .sort-btn {
+      padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+      border: 1.5px solid var(--border); color: var(--text-muted); transition: all 0.2s;
+    }
+    .sort-btn.active { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+    .mask-items { padding: 0 20px 16px; }
+    .mask-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 0; border-bottom: 1px solid var(--border);
+    }
+    .mask-item:last-child { border-bottom: none; }
+    .mask-item-info { flex: 1; min-width: 0; }
+    .mask-item-name { font-size: 0.88rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mask-item-stock { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+    .mask-item-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .mask-price { font-size: 1rem; font-weight: 700; color: var(--primary); }
+    .add-cart-btn {
+      width: 30px; height: 30px; border-radius: 8px;
+      background: var(--primary); color: #fff; font-size: 1.1rem;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+    }
+    .add-cart-btn:hover { background: var(--primary-dark); transform: scale(1.1); }
+
+    /* ── Search Panel ── */
+    .search-results-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+    }
+    .results-section { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+    .results-section-header {
+      padding: 14px 20px; background: var(--primary); color: #fff;
+      font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 8px;
+    }
+    .result-item {
+      padding: 14px 20px; border-bottom: 1px solid var(--border);
+      transition: background 0.15s; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .result-item:last-child { border-bottom: none; }
+    .result-item:hover { background: var(--bg); }
+    .result-item-name { font-size: 0.88rem; font-weight: 600; }
+    .result-item-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+    .empty-state {
+      padding: 48px 24px; text-align: center; color: var(--text-muted);
+    }
+    .empty-state .empty-icon { font-size: 3rem; margin-bottom: 12px; }
+    .empty-state p { font-size: 0.9rem; }
+
+    /* ── Cart Panel ── */
+    .cart-layout { display: grid; grid-template-columns: 1fr 380px; gap: 24px; align-items: start; }
+    .cart-items-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+    .cart-item-row {
+      padding: 14px 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px;
+    }
+    .cart-item-icon {
+      width: 38px; height: 38px; border-radius: 10px;
+      background: var(--primary-light); color: var(--primary);
+      display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0;
+    }
+    .cart-item-info { flex: 1; min-width: 0; }
+    .cart-item-name { font-size: 0.88rem; font-weight: 600; }
+    .cart-item-pharmacy { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+    .qty-control { display: flex; align-items: center; gap: 8px; }
+    .qty-btn {
+      width: 26px; height: 26px; border-radius: 6px;
+      border: 1.5px solid var(--border); font-size: 1rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text); transition: all 0.2s;
+    }
+    .qty-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .qty-num { width: 30px; text-align: center; font-weight: 700; font-size: 0.9rem; }
+    .cart-item-subtotal { font-weight: 700; color: var(--primary); font-size: 0.95rem; min-width: 60px; text-align: right; }
+    .remove-btn { color: #EF5350; font-size: 1rem; padding: 4px; transition: color 0.2s; }
+    .remove-btn:hover { color: #C62828; }
+    .checkout-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 24px; position: sticky; top: calc(var(--nav-h) + 49px + 24px); }
+    .checkout-title { font-size: 1rem; font-weight: 700; margin-bottom: 16px; }
+    .checkout-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.88rem; }
+    .checkout-total { font-size: 1.2rem; font-weight: 800; color: var(--primary); border-top: 2px solid var(--border); padding-top: 12px; margin-top: 8px; display: flex; justify-content: space-between; }
+    .form-group { margin-bottom: 14px; }
+    .form-label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+    .form-input {
+      width: 100%; padding: 9px 12px; border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm); font-size: 0.88rem; outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-input:focus { border-color: var(--primary); }
+    .form-select { width: 100%; padding: 9px 12px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 0.88rem; outline: none; transition: border-color 0.2s; background: #fff; }
+    .form-select:focus { border-color: var(--primary); }
+    .checkout-btn {
+      width: 100%; padding: 12px; border-radius: var(--radius-sm);
+      background: var(--primary); color: #fff; font-size: 0.95rem; font-weight: 700;
+      transition: all 0.2s; margin-top: 16px;
+    }
+    .checkout-btn:hover { background: var(--primary-dark); }
+    .checkout-btn:disabled { background: #B0BEC5; cursor: not-allowed; }
+
+    /* ── Purchase Result ── */
+    .purchase-result {
+      background: #E8F5E9; border: 1.5px solid #A5D6A7;
+      border-radius: var(--radius-sm); padding: 14px 16px; margin-top: 12px;
+    }
+    .purchase-result.error { background: #FFEBEE; border-color: #FFCDD2; }
+    .purchase-result p { font-size: 0.85rem; color: #2E7D32; }
+    .purchase-result.error p { color: #C62828; }
+
+    /* ── Leaderboard Panel ── */
+    .leaderboard-layout { display: grid; grid-template-columns: 1fr 340px; gap: 24px; align-items: start; }
+    .chart-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 24px; }
+    .chart-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 20px; }
+    .chart-wrap { position: relative; height: 340px; }
+    .leaderboard-table-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+    .leaderboard-row {
+      padding: 12px 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px;
+    }
+    .leaderboard-row:last-child { border-bottom: none; }
+    .rank-badge {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.78rem; font-weight: 800; flex-shrink: 0;
+    }
+    .rank-1 { background: #FFD700; color: #7B5E00; }
+    .rank-2 { background: #C0C0C0; color: #4A4A4A; }
+    .rank-3 { background: #CD7F32; color: #fff; }
+    .rank-other { background: var(--bg); color: var(--text-muted); }
+    .lb-name { flex: 1; font-size: 0.88rem; font-weight: 600; }
+    .lb-amount { font-weight: 700; color: var(--primary); font-size: 0.9rem; }
+
+    /* ── Admin Panel ── */
+    .admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .admin-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+    .admin-card-header {
+      padding: 14px 20px; background: var(--primary-light);
+      border-bottom: 1px solid var(--border);
+      font-weight: 700; font-size: 0.9rem; color: var(--primary);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .admin-card-body { padding: 20px; }
+    .mask-count-table { width: 100%; }
+    .mask-count-table th { font-size: 0.75rem; color: var(--text-muted); text-align: left; padding: 6px 0; border-bottom: 1px solid var(--border); }
+    .mask-count-table td { font-size: 0.84rem; padding: 8px 0; border-bottom: 1px solid var(--bg); }
+    .stock-adj-form { display: flex; flex-direction: column; gap: 12px; }
+    .range-inputs { display: flex; gap: 8px; align-items: center; }
+    .range-inputs input { flex: 1; }
+    .range-sep { color: var(--text-muted); font-size: 0.85rem; }
+    .adj-controls { display: flex; align-items: center; gap: 8px; }
+    .adj-input { width: 80px; padding: 7px 10px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); text-align: center; font-size: 0.9rem; font-weight: 700; outline: none; }
+    .adj-input:focus { border-color: var(--primary); }
+    .bulk-textarea {
+      width: 100%; min-height: 140px; padding: 10px 12px;
+      border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+      font-size: 0.8rem; font-family: 'Courier New', monospace; outline: none; resize: vertical;
+    }
+    .bulk-textarea:focus { border-color: var(--primary); }
+
+    /* ── Toast ── */
+    .toast-container { position: fixed; top: 80px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast {
+      background: var(--card); border-radius: var(--radius-sm);
+      padding: 12px 18px; min-width: 240px; max-width: 340px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      border-left: 4px solid var(--primary);
+      display: flex; align-items: center; gap: 10px;
+      animation: slideIn 0.3s ease; font-size: 0.85rem;
+    }
+    .toast.error { border-left-color: #EF5350; }
+    .toast.success { border-left-color: #66BB6A; }
+    @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes fadeOut { to { transform: translateX(120%); opacity: 0; } }
+
+    /* ── Loading ── */
+    .loading { text-align: center; padding: 48px; color: var(--text-muted); }
+    .spinner {
+      width: 36px; height: 36px; border: 3px solid var(--border);
+      border-top-color: var(--primary); border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Panel Header Card (Leaderboard filter) ── */
+    .filter-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; margin-bottom: 20px; }
+    .filter-card .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+
+    /* ── Admin full-width card ── */
+    .admin-card-full { grid-column: 1 / -1; }
+
+    /* ── Chip Tags ── */
+    .chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+    .chip-green { background: #E8F5E9; color: #2E7D32; }
+    .chip-blue { background: #E3F2FD; color: #1565C0; }
+    .chip-orange { background: #FFF3E0; color: #E65100; }
+
+    /* ═══════════════════════════════
+       RESPONSIVE — Tablet (≤ 1024px)
+    ═══════════════════════════════ */
+    @media (max-width: 1024px) {
+      .pharmacy-grid { grid-template-columns: repeat(2, 1fr); }
+      .search-results-grid { grid-template-columns: 1fr; }
+      .cart-layout { grid-template-columns: 1fr; }
+      .checkout-card { position: static; }
+      .leaderboard-layout { grid-template-columns: 1fr; }
+      .admin-grid { grid-template-columns: 1fr; }
+      .admin-card-full { grid-column: auto; }
+    }
+
+    /* ═══════════════════════════════
+       RESPONSIVE — Mobile (≤ 640px)
+    ═══════════════════════════════ */
+    @media (max-width: 640px) {
+      :root { --nav-h: 56px; }
+      .container { padding: 0 16px; }
+
+      /* Navbar */
+      .navbar { padding: 0 16px; gap: 10px; }
+      .navbar-logo .logo-text { display: none; }
+      .search-wrap { max-width: none; }
+      .status-dot .status-label { display: none; }
+      .hamburger { display: flex; }
+
+      /* Desktop tab bar → hidden */
+      .tab-bar { display: none; }
+
+      /* Main padding: no tab bar, add bottom bar space */
+      .main { padding-top: calc(var(--nav-h) + 24px); padding-bottom: calc(var(--tab-bar-h) + 24px); }
+
+      /* Mobile bottom tab bar */
+      .mobile-tab-bar {
+        display: flex !important;
+        position: fixed; bottom: 0; left: 0; right: 0; z-index: 90;
+        height: var(--tab-bar-h); background: var(--card);
+        border-top: 1px solid var(--border);
+        box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+      }
+      .mobile-tab-btn {
+        flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 3px; color: var(--text-muted); font-size: 0.65rem; font-weight: 500;
+        transition: color 0.2s; position: relative;
+      }
+      .mobile-tab-btn .icon { font-size: 1.3rem; }
+      .mobile-tab-btn.active { color: var(--primary); }
+      .mobile-tab-btn .badge {
+        position: absolute; top: 6px; right: calc(50% - 18px);
+        background: var(--accent); color: #fff;
+        font-size: 0.6rem; font-weight: 800;
+        padding: 1px 5px; border-radius: 8px;
+      }
+
+      /* Pharmacy grid: 1 col */
+      .pharmacy-grid { grid-template-columns: 1fr; gap: 12px; }
+
+      /* Filter bar: wrap tightly */
+      .filter-bar { padding: 12px 14px; gap: 8px; }
+
+      /* Cart layout: single col */
+      .cart-layout { grid-template-columns: 1fr; }
+
+      /* Admin grid: single col */
+      .admin-grid { grid-template-columns: 1fr; }
+
+      /* Section title */
+      .section-title { font-size: 1.05rem; }
+
+      /* Leaderboard layout: single col */
+      .leaderboard-layout { grid-template-columns: 1fr; }
+      .chart-wrap { height: 240px; }
+    }
+
+    /* Mobile tab bar hidden on desktop */
+    .mobile-tab-bar { display: none; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════ NAVBAR ═══════ -->
+<nav class="navbar">
+  <div class="navbar-logo">
+    <span>💊</span>
+    <span class="logo-text">PharmaMask</span>
+  </div>
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="globalSearch" placeholder="搜尋藥局或口罩名稱…" autocomplete="off">
+  </div>
+  <div class="navbar-right">
+    <div class="status-dot" id="statusDot">
+      <i></i>
+      <span class="status-label">API 連線中</span>
+    </div>
+    <button class="hamburger" id="hamburger" aria-label="選單">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</nav>
+
+<!-- ═══════ DESKTOP TAB BAR ═══════ -->
+<div class="tab-bar" id="desktopTabBar">
+  <button class="tab-btn active" data-tab="pharmacies">🏥 藥局瀏覽</button>
+  <button class="tab-btn" data-tab="search">🔍 搜尋結果</button>
+  <button class="tab-btn" data-tab="cart">🛒 購物車 <span class="badge" id="cartBadge" style="display:none">0</span></button>
+  <button class="tab-btn" data-tab="leaderboard">🏆 排行榜</button>
+  <button class="tab-btn" data-tab="admin">⚙️ 管理面板</button>
+</div>
+
+<!-- ═══════ MOBILE BOTTOM TAB BAR ═══════ -->
+<div class="mobile-tab-bar">
+  <button class="mobile-tab-btn active" data-tab="pharmacies"><span class="icon">🏥</span>藥局</button>
+  <button class="mobile-tab-btn" data-tab="search"><span class="icon">🔍</span>搜尋</button>
+  <button class="mobile-tab-btn" data-tab="cart"><span class="icon">🛒</span>購物車<span class="badge" id="cartBadgeMobile" style="display:none">0</span></button>
+  <button class="mobile-tab-btn" data-tab="leaderboard"><span class="icon">🏆</span>排行榜</button>
+  <button class="mobile-tab-btn" data-tab="admin"><span class="icon">⚙️</span>管理</button>
+</div>
+
+<!-- ═══════ MAIN ═══════ -->
+<main class="main">
+
+  <!-- ── TAB 1: 藥局瀏覽 ── -->
+  <div class="panel active" id="panel-pharmacies">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">藥局瀏覽 <span id="pharmacyCount"></span></h2>
+        <button class="btn btn-outline btn-sm" id="openNowBtn">📍 現在營業中</button>
+      </div>
+
+      <div class="filter-bar">
+        <label>營業篩選</label>
+        <select id="dayFilter">
+          <option value="">全部日期</option>
+          <option value="Mon">星期一</option>
+          <option value="Tue">星期二</option>
+          <option value="Wed">星期三</option>
+          <option value="Thur">星期四</option>
+          <option value="Fri">星期五</option>
+          <option value="Sat">星期六</option>
+          <option value="Sun">星期日</option>
+        </select>
+        <label>時間</label>
+        <input type="time" id="timeFilter" value="09:00">
+        <button class="btn btn-primary btn-sm" id="applyFilter">套用</button>
+        <button class="btn btn-ghost btn-sm" id="clearFilter">清除</button>
+      </div>
+
+      <div id="pharmacyGrid" class="pharmacy-grid">
+        <div class="loading"><div class="spinner"></div>載入中…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB 2: 搜尋結果 ── -->
+  <div class="panel" id="panel-search">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">搜尋結果：<span id="searchKeyword">—</span></h2>
+      </div>
+      <div id="searchResults">
+        <div class="empty-state">
+          <div class="empty-icon">🔍</div>
+          <p>在上方搜尋框輸入關鍵字</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB 3: 購物車 ── -->
+  <div class="panel" id="panel-cart">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">購物車</h2>
+      </div>
+      <div class="cart-layout">
+        <div>
+          <div class="cart-items-card" id="cartItemsCard">
+            <div class="empty-state" id="cartEmpty">
+              <div class="empty-icon">🛒</div>
+              <p>購物車是空的，去藥局瀏覽加入商品吧！</p>
+            </div>
+            <div id="cartItemsList"></div>
+          </div>
+        </div>
+        <div class="checkout-card">
+          <div class="checkout-title">結帳資訊</div>
+          <div class="form-group">
+            <label class="form-label">選擇使用者</label>
+            <select class="form-select" id="userSelect">
+              <option value="">— 選擇使用者 —</option>
+            </select>
+          </div>
+          <div id="checkoutLines"></div>
+          <div class="checkout-total">
+            <span>總計</span>
+            <span id="cartTotal">$0.00</span>
+          </div>
+          <button class="checkout-btn" id="checkoutBtn" disabled>立即結帳</button>
+          <div id="purchaseResult"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB 4: 排行榜 ── -->
+  <div class="panel" id="panel-leaderboard">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">消費排行榜</h2>
+      </div>
+      <div class="filter-card">
+        <div class="row">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">開始日期</label>
+            <input type="date" class="form-input" id="lbStart" style="width:auto">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">結束日期</label>
+            <input type="date" class="form-input" id="lbEnd" style="width:auto">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">顯示筆數</label>
+            <select class="form-select" id="lbLimit" style="width:auto">
+              <option value="5">Top 5</option>
+              <option value="10" selected>Top 10</option>
+              <option value="20">Top 20</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" id="lbQuery">查詢</button>
+        </div>
+      </div>
+      <div class="leaderboard-layout">
+        <div class="chart-card">
+          <div class="chart-title">💰 消費金額排行</div>
+          <div class="chart-wrap"><canvas id="lbChart"></canvas></div>
+        </div>
+        <div class="leaderboard-table-card" id="lbTable">
+          <div class="loading"><div class="spinner"></div>載入中…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB 5: 管理面板 ── -->
+  <div class="panel" id="panel-admin">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">管理面板</h2>
+      </div>
+      <div class="admin-grid">
+
+        <!-- 口罩數量分析 -->
+        <div class="admin-card">
+          <div class="admin-card-header">📊 口罩數量分析</div>
+          <div class="admin-card-body">
+            <div class="form-group">
+              <label class="form-label">價格區間</label>
+              <div class="range-inputs">
+                <input type="number" class="form-input" id="mcMin" placeholder="最低 $" min="0" value="0">
+                <span class="range-sep">—</span>
+                <input type="number" class="form-input" id="mcMax" placeholder="最高 $" min="0" value="50">
+              </div>
+            </div>
+            <div class="range-inputs" style="gap:8px;margin-bottom:14px">
+              <div class="form-group" style="margin:0;flex:1">
+                <label class="form-label">數量下限</label>
+                <input type="number" class="form-input" id="mcCountMin" placeholder="最少幾種" min="0">
+              </div>
+              <div class="form-group" style="margin:0;flex:1">
+                <label class="form-label">數量上限</label>
+                <input type="number" class="form-input" id="mcCountMax" placeholder="最多幾種" min="0">
+              </div>
+            </div>
+            <button class="btn btn-primary" style="width:100%" id="mcQuery">查詢</button>
+            <div id="mcResult" style="margin-top:14px;overflow-x:auto"></div>
+          </div>
+        </div>
+
+        <!-- 庫存調整 -->
+        <div class="admin-card">
+          <div class="admin-card-header">📦 庫存調整</div>
+          <div class="admin-card-body">
+            <div class="stock-adj-form">
+              <div class="form-group" style="margin:0">
+                <label class="form-label">選擇藥局</label>
+                <select class="form-select" id="adjPharmacy">
+                  <option value="">— 選擇藥局 —</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin:0">
+                <label class="form-label">選擇口罩</label>
+                <select class="form-select" id="adjMask" disabled>
+                  <option value="">— 先選藥局 —</option>
+                </select>
+              </div>
+              <div id="adjCurrentStock" style="font-size:0.82rem;color:var(--text-muted)"></div>
+              <div class="form-group" style="margin:0">
+                <label class="form-label">調整數量（正數增加／負數減少）</label>
+                <div class="adj-controls">
+                  <button class="btn btn-outline btn-sm" id="adjMinus">－</button>
+                  <input type="number" class="adj-input" id="adjValue" value="1">
+                  <button class="btn btn-outline btn-sm" id="adjPlus">＋</button>
+                </div>
+              </div>
+              <button class="btn btn-primary" id="adjSubmit">更新庫存</button>
+              <div id="adjResult"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 批次匯入口罩 -->
+        <div class="admin-card admin-card-full">
+          <div class="admin-card-header">📋 批次匯入口罩</div>
+          <div class="admin-card-body">
+            <div style="display:grid;grid-template-columns:240px 1fr;gap:16px;align-items:start">
+              <div>
+                <div class="form-group">
+                  <label class="form-label">選擇藥局</label>
+                  <select class="form-select" id="bulkPharmacy">
+                    <option value="">— 選擇藥局 —</option>
+                  </select>
+                </div>
+                <p style="font-size:0.78rem;color:var(--text-muted);line-height:1.5">
+                  貼入 JSON 陣列，每筆包含：<br>
+                  <code>name</code>、<code>price</code>、<code>stockQuantity</code><br><br>
+                  已存在同名口罩將自動更新。
+                </p>
+                <button class="btn btn-primary" style="margin-top:12px" id="bulkSubmit">批次匯入</button>
+                <div id="bulkResult" style="margin-top:12px"></div>
+              </div>
+              <div>
+                <label class="form-label">口罩 JSON</label>
+                <textarea class="bulk-textarea" id="bulkJson" placeholder='[
+  { "name": "Mask A", "price": 25.00, "stockQuantity": 100 },
+  { "name": "Mask B", "price": 15.00, "stockQuantity": 50 }
+]'></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ═══════════════════════════════
+// CONFIG & STATE
+// ═══════════════════════════════
+const API = ''  // same origin
+
+const state = {
+  pharmacies: [],
+  cart: [],        // { maskId, maskName, pharmacyName, price, quantity, pharmacyId }
+  chartInstance: null,
+  users: [],
+}
+
+// ═══════════════════════════════
+// UTILITIES
+// ═══════════════════════════════
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(API + path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts,
+  })
+  const data = await res.json()
+  if (!res.ok) throw Object.assign(new Error(data.message || '請求失敗'), { statusCode: res.status })
+  return data
+}
+
+function toast(msg, type = 'info') {
+  const el = document.createElement('div')
+  el.className = `toast ${type}`
+  el.textContent = msg
+  document.getElementById('toastContainer').appendChild(el)
+  setTimeout(() => {
+    el.style.animation = 'fadeOut 0.3s ease forwards'
+    el.addEventListener('animationend', () => el.remove())
+  }, 3200)
+}
+
+function fmt(n) { return '$' + Number(n).toFixed(2) }
+
+function switchTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'))
+  document.querySelectorAll('.tab-btn, .mobile-tab-btn').forEach(b => b.classList.remove('active'))
+  document.getElementById('panel-' + name).classList.add('active')
+  document.querySelectorAll(`[data-tab="${name}"]`).forEach(b => b.classList.add('active'))
+  if (name === 'leaderboard' && state.users.length === 0) loadLeaderboard()
+}
+
+// ═══════════════════════════════
+// HEALTH CHECK
+// ═══════════════════════════════
+async function checkHealth() {
+  try {
+    await apiFetch('/healthz')
+    const dot = document.querySelector('#statusDot i')
+    dot.classList.remove('offline')
+  } catch {
+    document.querySelector('#statusDot i').classList.add('offline')
+    document.querySelector('.status-label') && (document.querySelector('.status-label').textContent = '離線')
+  }
+}
+
+// ═══════════════════════════════
+// TAB 1 — PHARMACIES
+// ═══════════════════════════════
+function getDayAbbr() {
+  return ['Sun','Mon','Tue','Wed','Thur','Fri','Sat'][new Date().getDay()]
+}
+function getCurrentTime() {
+  const now = new Date()
+  return String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0')
+}
+
+async function loadPharmacies(day, time) {
+  const grid = document.getElementById('pharmacyGrid')
+  grid.innerHTML = '<div class="loading"><div class="spinner"></div>載入中…</div>'
+  try {
+    let url = '/pharmacies'
+    if (day && time) url += `?day=${day}&time=${time}`
+    const data = await apiFetch(url)
+    state.pharmacies = data
+    document.getElementById('pharmacyCount').textContent = `(${data.length})`
+    renderPharmacyGrid(data, day, time)
+  } catch (e) {
+    grid.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>${e.message}</p></div>`
+  }
+}
+
+function renderPharmacyGrid(pharmacies, day, time) {
+  const grid = document.getElementById('pharmacyGrid')
+  if (!pharmacies.length) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🔍</div><p>沒有符合條件的藥局</p></div>'
+    return
+  }
+  grid.innerHTML = pharmacies.map(p => `
+    <div class="pharmacy-card" id="pcard-${p.id}" onclick="togglePharmacyCard(${p.id}, this)">
+      <div class="pharmacy-card-header">
+        <div class="pharmacy-info">
+          <div class="pharmacy-icon">🏥</div>
+          <div>
+            <div class="pharmacy-name">${p.name}</div>
+            <div class="pharmacy-balance">餘額 ${fmt(p.cashBalance)}</div>
+          </div>
+        </div>
+        <span class="open-badge ${day ? 'open' : ''}" id="badge-${p.id}">
+          ${day ? '✓ 營業中' : '查看口罩'}
+        </span>
+      </div>
+      <div class="pharmacy-card-body" id="pbody-${p.id}">
+        <div class="mask-list-header">
+          <span style="font-size:0.8rem;font-weight:600;color:var(--text-muted)">口罩列表</span>
+          <div class="sort-toggle">
+            <button class="sort-btn active" onclick="sortMasks(event,${p.id},'name')">名稱</button>
+            <button class="sort-btn" onclick="sortMasks(event,${p.id},'price')">價格</button>
+          </div>
+        </div>
+        <div class="mask-items" id="masks-${p.id}">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+  `).join('')
+}
+
+async function togglePharmacyCard(id, cardEl) {
+  const body = document.getElementById('pbody-' + id)
+  const isOpen = body.classList.contains('open')
+  // Close all others
+  document.querySelectorAll('.pharmacy-card-body.open').forEach(b => {
+    b.classList.remove('open')
+    b.closest('.pharmacy-card').classList.remove('expanded')
+  })
+  if (!isOpen) {
+    body.classList.add('open')
+    cardEl.classList.add('expanded')
+    await fetchMasks(id, 'name')
+  }
+}
+
+async function fetchMasks(pharmacyId, sort) {
+  const container = document.getElementById('masks-' + pharmacyId)
+  container.innerHTML = '<div class="loading"><div class="spinner"></div></div>'
+  try {
+    const masks = await apiFetch(`/pharmacies/${pharmacyId}/masks?sort=${sort}`)
+    const pharmacy = state.pharmacies.find(p => p.id === pharmacyId)
+    renderMasks(pharmacyId, masks, pharmacy?.name || '')
+  } catch (e) {
+    container.innerHTML = `<p style="color:#EF5350;font-size:0.82rem;padding:8px 0">${e.message}</p>`
+  }
+}
+
+function renderMasks(pharmacyId, masks, pharmacyName) {
+  const container = document.getElementById('masks-' + pharmacyId)
+  if (!masks.length) {
+    container.innerHTML = '<p style="color:var(--text-muted);font-size:0.82rem;padding:8px 0">此藥局目前無口罩商品</p>'
+    return
+  }
+  container.innerHTML = masks.map(m => `
+    <div class="mask-item">
+      <div class="mask-item-info">
+        <div class="mask-item-name" title="${m.name}">${m.name}</div>
+        <div class="mask-item-stock">庫存：${m.stockQuantity} 件</div>
+      </div>
+      <div class="mask-item-right">
+        <span class="mask-price">${fmt(m.price)}</span>
+        <button class="add-cart-btn" title="加入購物車"
+          onclick="addToCart(event,${m.id},'${m.name.replace(/'/g,"\\'")}','${pharmacyName.replace(/'/g,"\\'")}',${m.price},${pharmacyId})">+</button>
+      </div>
+    </div>
+  `).join('')
+}
+
+async function sortMasks(e, pharmacyId, sort) {
+  e.stopPropagation()
+  const btns = e.target.closest('.sort-toggle').querySelectorAll('.sort-btn')
+  btns.forEach(b => b.classList.remove('active'))
+  e.target.classList.add('active')
+  await fetchMasks(pharmacyId, sort)
+}
+
+// ═══════════════════════════════
+// TAB 2 — SEARCH
+// ═══════════════════════════════
+let searchTimer = null
+function onSearch(q) {
+  clearTimeout(searchTimer)
+  if (!q.trim()) return
+  searchTimer = setTimeout(() => runSearch(q.trim()), 380)
+}
+
+async function runSearch(q) {
+  switchTab('search')
+  document.getElementById('searchKeyword').textContent = `"${q}"`
+  const container = document.getElementById('searchResults')
+  container.innerHTML = '<div class="loading"><div class="spinner"></div>搜尋中…</div>'
+  try {
+    const { pharmacies, masks } = await apiFetch(`/search?q=${encodeURIComponent(q)}`)
+    renderSearchResults(pharmacies, masks)
+  } catch (e) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>${e.message}</p></div>`
+  }
+}
+
+function renderSearchResults(pharmacies, masks) {
+  const container = document.getElementById('searchResults')
+  container.innerHTML = `
+    <div class="search-results-grid">
+      <div class="results-section">
+        <div class="results-section-header">🏥 藥局 (${pharmacies.length})</div>
+        ${pharmacies.length ? pharmacies.map(p => `
+          <div class="result-item">
+            <div>
+              <div class="result-item-name">${p.name}</div>
+              <div class="result-item-sub">餘額 ${fmt(p.cashBalance)}</div>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="goToPharmacy(${p.id})">查看口罩</button>
+          </div>
+        `).join('') : '<div class="empty-state" style="padding:24px"><div class="empty-icon" style="font-size:2rem">🔍</div><p>無藥局結果</p></div>'}
+      </div>
+      <div class="results-section">
+        <div class="results-section-header">😷 口罩 (${masks.length})</div>
+        ${masks.length ? masks.map(m => `
+          <div class="result-item">
+            <div>
+              <div class="result-item-name">${m.name}</div>
+              <div class="result-item-sub">${fmt(m.price)} · 庫存 ${m.stockQuantity}</div>
+            </div>
+            <button class="btn btn-accent btn-sm"
+              onclick="addToCartFromSearch(${m.id},'${m.name.replace(/'/g,"\\'")}',${m.price},${m.pharmacyId})">
+              加入 🛒
+            </button>
+          </div>
+        `).join('') : '<div class="empty-state" style="padding:24px"><div class="empty-icon" style="font-size:2rem">😷</div><p>無口罩結果</p></div>'}
+      </div>
+    </div>
+  `
+}
+
+function goToPharmacy(id) {
+  switchTab('pharmacies')
+  const card = document.getElementById('pcard-' + id)
+  if (card) {
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setTimeout(() => togglePharmacyCard(id, card), 400)
+  }
+}
+
+async function addToCartFromSearch(maskId, maskName, price, pharmacyId) {
+  const pharmacy = state.pharmacies.find(p => p.id === pharmacyId)
+  const pharmacyName = pharmacy ? pharmacy.name : `藥局 #${pharmacyId}`
+  addToCart(null, maskId, maskName, pharmacyName, price, pharmacyId)
+}
+
+// ═══════════════════════════════
+// TAB 3 — CART
+// ═══════════════════════════════
+function addToCart(e, maskId, maskName, pharmacyName, price, pharmacyId) {
+  if (e) e.stopPropagation()
+  const existing = state.cart.find(i => i.maskId === maskId)
+  if (existing) {
+    existing.quantity++
+  } else {
+    state.cart.push({ maskId, maskName, pharmacyName, price, quantity: 1, pharmacyId })
+  }
+  updateCartBadge()
+  renderCartItems()
+  toast(`已加入：${maskName}`, 'success')
+}
+
+function updateCartBadge() {
+  const count = state.cart.reduce((s, i) => s + i.quantity, 0)
+  const show = count > 0
+  ;['cartBadge','cartBadgeMobile'].forEach(id => {
+    const el = document.getElementById(id)
+    if (!el) return
+    el.textContent = count
+    el.style.display = show ? '' : 'none'
+  })
+}
+
+function renderCartItems() {
+  const list = document.getElementById('cartItemsList')
+  const empty = document.getElementById('cartEmpty')
+  const total = state.cart.reduce((s, i) => s + i.price * i.quantity, 0)
+  document.getElementById('cartTotal').textContent = fmt(total)
+
+  if (!state.cart.length) {
+    empty.style.display = ''
+    list.innerHTML = ''
+    document.getElementById('checkoutLines').innerHTML = ''
+    document.getElementById('checkoutBtn').disabled = true
+    return
+  }
+  empty.style.display = 'none'
+  list.innerHTML = state.cart.map((item, idx) => `
+    <div class="cart-item-row">
+      <div class="cart-item-icon">😷</div>
+      <div class="cart-item-info">
+        <div class="cart-item-name">${item.maskName}</div>
+        <div class="cart-item-pharmacy">${item.pharmacyName}</div>
+      </div>
+      <div class="qty-control">
+        <button class="qty-btn" onclick="changeQty(${idx},-1)">−</button>
+        <span class="qty-num">${item.quantity}</span>
+        <button class="qty-btn" onclick="changeQty(${idx},1)">+</button>
+      </div>
+      <div class="cart-item-subtotal">${fmt(item.price * item.quantity)}</div>
+      <button class="remove-btn" onclick="removeCartItem(${idx})">✕</button>
+    </div>
+  `).join('')
+
+  document.getElementById('checkoutLines').innerHTML = state.cart.map(i =>
+    `<div class="checkout-row"><span>${i.maskName} ×${i.quantity}</span><span>${fmt(i.price * i.quantity)}</span></div>`
+  ).join('')
+
+  const userId = document.getElementById('userSelect').value
+  document.getElementById('checkoutBtn').disabled = !userId
+}
+
+function changeQty(idx, delta) {
+  state.cart[idx].quantity += delta
+  if (state.cart[idx].quantity <= 0) state.cart.splice(idx, 1)
+  updateCartBadge()
+  renderCartItems()
+}
+
+function removeCartItem(idx) {
+  state.cart.splice(idx, 1)
+  updateCartBadge()
+  renderCartItems()
+}
+
+async function loadUsers() {
+  try {
+    const users = await apiFetch('/users/top-spenders?start=2024-01-01&end=2099-12-31&limit=100')
+    state.users = users
+    const sel = document.getElementById('userSelect')
+    sel.innerHTML = '<option value="">— 選擇使用者 —</option>' +
+      users.map(u => `<option value="${u.id}">${u.name} (餘額：不適用)</option>`).join('')
+  } catch {}
+}
+
+async function checkout() {
+  const userId = parseInt(document.getElementById('userSelect').value)
+  if (!userId || !state.cart.length) return
+  const btn = document.getElementById('checkoutBtn')
+  btn.disabled = true
+  btn.textContent = '處理中…'
+  const resultEl = document.getElementById('purchaseResult')
+  try {
+    const result = await apiFetch('/purchases', {
+      method: 'POST',
+      body: JSON.stringify({
+        userId,
+        items: state.cart.map(i => ({ maskId: i.maskId, quantity: i.quantity }))
+      })
+    })
+    resultEl.innerHTML = `<div class="purchase-result"><p>✅ 購買成功！總金額 ${fmt(result.totalAmount)}，共 ${result.purchaseCount} 種口罩</p></div>`
+    state.cart = []
+    updateCartBadge()
+    renderCartItems()
+    toast('購買成功！', 'success')
+  } catch (e) {
+    resultEl.innerHTML = `<div class="purchase-result error"><p>❌ ${e.message}</p></div>`
+    toast(e.message, 'error')
+  } finally {
+    btn.disabled = false
+    btn.textContent = '立即結帳'
+  }
+}
+
+// ═══════════════════════════════
+// TAB 4 — LEADERBOARD
+// ═══════════════════════════════
+function initLeaderboardDates() {
+  document.getElementById('lbStart').value = '2024-12-01'
+  document.getElementById('lbEnd').value = new Date().toISOString().split('T')[0]
+}
+
+async function loadLeaderboard() {
+  const start = document.getElementById('lbStart').value
+  const end = document.getElementById('lbEnd').value
+  const limit = document.getElementById('lbLimit').value
+  if (!start || !end) { toast('請選擇日期範圍', 'error'); return }
+  const table = document.getElementById('lbTable')
+  table.innerHTML = '<div class="loading"><div class="spinner"></div>載入中…</div>'
+  try {
+    const data = await apiFetch(`/users/top-spenders?start=${start}&end=${end}&limit=${limit}`)
+    renderLeaderboard(data)
+  } catch (e) {
+    table.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>${e.message}</p></div>`
+  }
+}
+
+function renderLeaderboard(data) {
+  const table = document.getElementById('lbTable')
+  if (!data.length) {
+    table.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><p>此區間無消費紀錄</p></div>'
+    return
+  }
+  table.innerHTML = data.map((u, i) => `
+    <div class="leaderboard-row">
+      <div class="rank-badge rank-${i < 3 ? i+1 : 'other'}">${i+1}</div>
+      <div class="lb-name">${u.name}</div>
+      <div class="lb-amount">${fmt(u.totalSpent)}</div>
+    </div>
+  `).join('')
+
+  // Chart
+  if (state.chartInstance) state.chartInstance.destroy()
+  const ctx = document.getElementById('lbChart').getContext('2d')
+  const colors = data.map((_, i) => i === 0 ? '#FFD700' : i === 1 ? '#90A4AE' : i === 2 ? '#CD7F32' : '#00897B')
+  state.chartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: data.map(u => u.name),
+      datasets: [{ data: data.map(u => u.totalSpent), backgroundColor: colors, borderRadius: 6 }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmt(c.raw) } } },
+      scales: {
+        x: { ticks: { callback: v => '$' + v }, grid: { color: '#F0F4F8' } },
+        y: { ticks: { font: { size: 11 } } }
+      }
+    }
+  })
+}
+
+// ═══════════════════════════════
+// TAB 5 — ADMIN
+// ═══════════════════════════════
+async function loadAdminPharmacies() {
+  const pharmacies = state.pharmacies.length ? state.pharmacies : await apiFetch('/pharmacies')
+  if (!state.pharmacies.length) state.pharmacies = pharmacies
+  const opts = '<option value="">— 選擇藥局 —</option>' +
+    pharmacies.map(p => `<option value="${p.id}">${p.name}</option>`).join('')
+  document.getElementById('adjPharmacy').innerHTML = opts
+  document.getElementById('bulkPharmacy').innerHTML = opts
+}
+
+async function queryMaskCount() {
+  const minPrice = document.getElementById('mcMin').value
+  const maxPrice = document.getElementById('mcMax').value
+  const countMin = document.getElementById('mcCountMin').value
+  const countMax = document.getElementById('mcCountMax').value
+  const result = document.getElementById('mcResult')
+  result.innerHTML = '<div class="loading"><div class="spinner"></div></div>'
+  try {
+    let url = `/pharmacies/mask-count?minPrice=${minPrice}&maxPrice=${maxPrice}`
+    if (countMin) url += `&countMin=${countMin}`
+    if (countMax) url += `&countMax=${countMax}`
+    const data = await apiFetch(url)
+    if (!data.length) {
+      result.innerHTML = '<p style="color:var(--text-muted);font-size:0.82rem">無符合條件的藥局</p>'
+      return
+    }
+    result.innerHTML = `
+      <table class="mask-count-table">
+        <thead><tr><th>藥局名稱</th><th>口罩種數</th></tr></thead>
+        <tbody>${data.map(p => `
+          <tr><td>${p.name}</td><td><span class="chip chip-green">${p.maskCount} 種</span></td></tr>
+        `).join('')}</tbody>
+      </table>`
+  } catch (e) {
+    result.innerHTML = `<p style="color:#EF5350;font-size:0.82rem">${e.message}</p>`
+  }
+}
+
+async function loadMasksForAdj(pharmacyId) {
+  const sel = document.getElementById('adjMask')
+  if (!pharmacyId) { sel.innerHTML = '<option value="">— 先選藥局 —</option>'; sel.disabled = true; return }
+  sel.innerHTML = '<option>載入中…</option>'; sel.disabled = true
+  try {
+    const masks = await apiFetch(`/pharmacies/${pharmacyId}/masks`)
+    sel.innerHTML = '<option value="">— 選擇口罩 —</option>' +
+      masks.map(m => `<option value="${m.id}" data-stock="${m.stockQuantity}">${m.name} (庫存:${m.stockQuantity})</option>`).join('')
+    sel.disabled = false
+  } catch {
+    sel.innerHTML = '<option value="">載入失敗</option>'
+  }
+}
+
+function updateAdjStockDisplay() {
+  const sel = document.getElementById('adjMask')
+  const opt = sel.options[sel.selectedIndex]
+  const stock = opt?.dataset?.stock
+  const el = document.getElementById('adjCurrentStock')
+  el.textContent = stock !== undefined ? `目前庫存：${stock} 件` : ''
+}
+
+async function submitStockAdj() {
+  const maskId = document.getElementById('adjMask').value
+  const adjustment = parseInt(document.getElementById('adjValue').value)
+  const result = document.getElementById('adjResult')
+  if (!maskId) { toast('請選擇口罩', 'error'); return }
+  if (!adjustment) { toast('調整量不能為 0', 'error'); return }
+  try {
+    const data = await apiFetch(`/masks/${maskId}/stock`, {
+      method: 'PATCH',
+      body: JSON.stringify({ adjustment })
+    })
+    result.innerHTML = `<div class="purchase-result" style="margin-top:8px"><p>✅ 更新成功！新庫存：${data.stockQuantity} 件</p></div>`
+    toast('庫存更新成功', 'success')
+    // Reload mask list
+    const pharmacyId = document.getElementById('adjPharmacy').value
+    await loadMasksForAdj(pharmacyId)
+  } catch (e) {
+    result.innerHTML = `<div class="purchase-result error" style="margin-top:8px"><p>❌ ${e.message}</p></div>`
+    toast(e.message, 'error')
+  }
+}
+
+async function submitBulkMasks() {
+  const pharmacyId = document.getElementById('bulkPharmacy').value
+  const jsonText = document.getElementById('bulkJson').value.trim()
+  const result = document.getElementById('bulkResult')
+  if (!pharmacyId) { toast('請選擇藥局', 'error'); return }
+  let masks
+  try { masks = JSON.parse(jsonText) } catch { toast('JSON 格式錯誤', 'error'); return }
+  if (!Array.isArray(masks) || !masks.length) { toast('請輸入有效的口罩陣列', 'error'); return }
+  try {
+    const data = await apiFetch(`/pharmacies/${pharmacyId}/masks`, {
+      method: 'PUT',
+      body: JSON.stringify({ masks })
+    })
+    result.innerHTML = `<div class="purchase-result"><p>✅ 成功匯入 ${data.length} 種口罩</p></div>`
+    toast(`匯入 ${data.length} 種口罩成功`, 'success')
+  } catch (e) {
+    result.innerHTML = `<div class="purchase-result error"><p>❌ ${e.message}</p></div>`
+    toast(e.message, 'error')
+  }
+}
+
+// ═══════════════════════════════
+// EVENT LISTENERS
+// ═══════════════════════════════
+function bindEvents() {
+  // Tab switching
+  document.querySelectorAll('[data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      switchTab(btn.dataset.tab)
+      if (btn.dataset.tab === 'admin') loadAdminPharmacies()
+    })
+  })
+
+  // Global search
+  document.getElementById('globalSearch').addEventListener('input', e => onSearch(e.target.value))
+  document.getElementById('globalSearch').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.value.trim()) runSearch(e.target.value.trim())
+  })
+
+  // Pharmacy filter
+  document.getElementById('applyFilter').addEventListener('click', () => {
+    const day = document.getElementById('dayFilter').value
+    const time = document.getElementById('timeFilter').value
+    if (!day) { toast('請選擇日期', 'error'); return }
+    loadPharmacies(day, time)
+  })
+  document.getElementById('clearFilter').addEventListener('click', () => {
+    document.getElementById('dayFilter').value = ''
+    loadPharmacies()
+  })
+  document.getElementById('openNowBtn').addEventListener('click', () => {
+    const day = getDayAbbr()
+    const time = getCurrentTime()
+    document.getElementById('dayFilter').value = day
+    document.getElementById('timeFilter').value = time
+    loadPharmacies(day, time)
+  })
+
+  // Cart
+  document.getElementById('userSelect').addEventListener('change', e => {
+    document.getElementById('checkoutBtn').disabled = !e.target.value || !state.cart.length
+  })
+  document.getElementById('checkoutBtn').addEventListener('click', checkout)
+
+  // Leaderboard
+  document.getElementById('lbQuery').addEventListener('click', loadLeaderboard)
+
+  // Admin: mask count query
+  document.getElementById('mcQuery').addEventListener('click', queryMaskCount)
+
+  // Admin: stock adjustment
+  document.getElementById('adjPharmacy').addEventListener('change', e => loadMasksForAdj(e.target.value))
+  document.getElementById('adjMask').addEventListener('change', updateAdjStockDisplay)
+  document.getElementById('adjPlus').addEventListener('click', () => {
+    document.getElementById('adjValue').value = parseInt(document.getElementById('adjValue').value || 0) + 1
+  })
+  document.getElementById('adjMinus').addEventListener('click', () => {
+    document.getElementById('adjValue').value = parseInt(document.getElementById('adjValue').value || 0) - 1
+  })
+  document.getElementById('adjSubmit').addEventListener('click', submitStockAdj)
+
+  // Admin: bulk import
+  document.getElementById('bulkSubmit').addEventListener('click', submitBulkMasks)
+}
+
+// ═══════════════════════════════
+// INIT
+// ═══════════════════════════════
+async function init() {
+  bindEvents()
+  initLeaderboardDates()
+  await checkHealth()
+  await Promise.all([loadPharmacies(), loadUsers()])
+}
+
+init()
+</script>
+</body>
+</html>

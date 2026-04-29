@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Pharmacy {
+  id          Int               @id @default(autoincrement())
+  name        String            @unique
+  cashBalance Decimal           @map("cash_balance") @db.Decimal(10, 2)
+  hours       PharmacyHours[]
+  masks       Mask[]
+  purchases   PurchaseHistory[]
+
+  @@map("pharmacies")
+}
+
+model PharmacyHours {
+  id         Int      @id @default(autoincrement())
+  pharmacyId Int      @map("pharmacy_id")
+  dayOfWeek  String   @map("day_of_week")
+  openTime   String   @map("open_time")
+  closeTime  String   @map("close_time")
+  pharmacy   Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+
+  @@index([dayOfWeek, openTime, closeTime])
+  @@map("pharmacy_hours")
+}
+
+model Mask {
+  id            Int               @id @default(autoincrement())
+  pharmacyId    Int               @map("pharmacy_id")
+  name          String
+  price         Decimal           @db.Decimal(10, 2)
+  stockQuantity Int               @map("stock_quantity")
+  pharmacy      Pharmacy          @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  purchases     PurchaseHistory[]
+
+  @@unique([pharmacyId, name])
+  @@index([pharmacyId, price])
+  @@map("masks")
+}
+
+model User {
+  id          Int               @id @default(autoincrement())
+  name        String            @unique
+  cashBalance Decimal           @map("cash_balance") @db.Decimal(10, 2)
+  purchases   PurchaseHistory[]
+
+  @@map("users")
+}
+
+model PurchaseHistory {
+  id              Int      @id @default(autoincrement())
+  userId          Int      @map("user_id")
+  pharmacyId      Int      @map("pharmacy_id")
+  maskId          Int      @map("mask_id")
+  maskName        String   @map("mask_name")
+  quantity        Int
+  totalPrice      Decimal  @map("total_price") @db.Decimal(10, 2)
+  transactionDate DateTime @map("transaction_date")
+  user            User     @relation(fields: [userId], references: [id])
+  pharmacy        Pharmacy @relation(fields: [pharmacyId], references: [id])
+  mask            Mask     @relation(fields: [maskId], references: [id])
+
+  @@index([userId, transactionDate])
+  @@map("purchase_histories")
+}
