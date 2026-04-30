@@ -142,7 +142,7 @@ describe('Pharmacy routes (real DB)', () => {
   describe('PUT /pharmacies/:id/masks', () => {
     it('creates a new mask and returns it', async () => {
       const res = await app.inject({
-        method: 'PUT',
+        method: 'PATCH',
         url: `/pharmacies/${pharmacyId}/masks`,
         payload: { masks: [{ name: '新款口罩C', price: 35, stockQuantity: 20 }] },
       })
@@ -155,7 +155,7 @@ describe('Pharmacy routes (real DB)', () => {
 
     it('updates price of an existing mask on re-upsert', async () => {
       const res = await app.inject({
-        method: 'PUT',
+        method: 'PATCH',
         url: `/pharmacies/${pharmacyId}/masks`,
         payload: { masks: [{ name: '棉護口罩A', price: 99, stockQuantity: 5 }] },
       })
@@ -166,7 +166,7 @@ describe('Pharmacy routes (real DB)', () => {
 
     it('returns 400 for empty masks array', async () => {
       const res = await app.inject({
-        method: 'PUT',
+        method: 'PATCH',
         url: `/pharmacies/${pharmacyId}/masks`,
         payload: { masks: [] },
       })
@@ -175,7 +175,7 @@ describe('Pharmacy routes (real DB)', () => {
 
     it('returns 404 for non-existent pharmacy', async () => {
       const res = await app.inject({
-        method: 'PUT',
+        method: 'PATCH',
         url: '/pharmacies/99999/masks',
         payload: { masks: [{ name: 'X', price: 10, stockQuantity: 5 }] },
       })

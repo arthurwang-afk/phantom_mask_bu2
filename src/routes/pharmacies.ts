@@ -56,7 +56,7 @@ export async function pharmaciesRoutes(app: FastifyInstance) {
     return masks.map((m) => ({ ...m, price: Number(m.price) }))
   })
 
-  app.put('/:id/masks', { schema: upsertMasksSchema }, async (request, reply) => {
+  app.patch('/:id/masks', { schema: upsertMasksSchema }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const { masks } = request.body as {
       masks: Array<{ name: string; price: number; stockQuantity: number }>

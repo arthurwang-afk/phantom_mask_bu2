@@ -113,7 +113,7 @@ export const maskCountSchema = {
 }
 
 export const upsertMasksSchema = {
-  description: 'Bulk create/update masks for a pharmacy',
+  description: 'Batch upsert masks for a pharmacy (create new or update existing by name; masks not in the list are preserved)',
   tags: ['pharmacies'],
   params: {
     type: 'object',

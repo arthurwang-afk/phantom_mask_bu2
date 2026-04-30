@@ -118,7 +118,7 @@ npm run dev
 | GET | `/pharmacies` | 列出藥局（可加 `?day=Mon&time=14:00` 篩選營業中） |
 | GET | `/pharmacies/:id/masks` | 藥局口罩列表（可加 `?sort=name\|price`） |
 | GET | `/pharmacies/mask-count` | 依價格區間與口罩數量篩選藥局 |
-| PUT | `/pharmacies/:id/masks` | 批次建立／更新口罩 |
+| PATCH | `/pharmacies/:id/masks` | 批次建立／更新口罩 |
 | GET | `/users/top-spenders` | 消費排行榜（需帶 `?start=&end=`） |
 | POST | `/purchases` | 購買交易（atomic transaction） |
 | PATCH | `/masks/:id/stock` | 調整口罩庫存 |

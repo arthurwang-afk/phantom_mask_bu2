@@ -15,7 +15,7 @@
 - [x] Update the stock quantity of an existing mask product by increasing or decreasing it.
   - Implemented at `PATCH /masks/:id/stock`
 - [x] Create or update multiple mask products for a pharmacy at once, including name, price, and stock quantity.
-  - Implemented at `PUT /pharmacies/:id/masks`
+  - Implemented at `PATCH /pharmacies/:id/masks`
 - [x] Search for pharmacies or masks by name and rank the results by relevance to the search term.
   - Implemented at `GET /search?q=棉護`
 
@@ -33,7 +33,7 @@ Interactive Swagger UI is available at **`http://localhost:3000/docs`** after st
 | GET | `/pharmacies` | List pharmacies. Query: `day` (Mon/Tue/…), `time` (HH:MM) |
 | GET | `/pharmacies/:id/masks` | List masks for a pharmacy. Query: `sort=name\|price` |
 | GET | `/pharmacies/mask-count` | Pharmacies by mask count in price range. Query: `minPrice`*, `maxPrice`*, `countMin`, `countMax` |
-| PUT | `/pharmacies/:id/masks` | Batch create/update masks |
+| PATCH | `/pharmacies/:id/masks` | Batch create/update masks |
 | GET | `/users/top-spenders` | Top N spenders. Query: `start`*, `end`* (YYYY-MM-DD), `limit` (default 10) |
 | POST | `/purchases` | Atomic purchase transaction |
 | PATCH | `/masks/:id/stock` | Adjust mask stock |
@@ -230,6 +230,21 @@ erDiagram
 ```
 
 ### Key Design Decisions
+
+**Migration rollback strategy**
+
+Each migration folder contains both `migration.sql` (forward) and `down.sql` (rollback). To roll back the initial schema:
+
+```bash
+# Execute down.sql directly via psql
+psql $DATABASE_URL -f prisma/migrations/20240101000000_init/down.sql
+
+# Or via Docker
+docker compose exec postgres psql -U postgres phantom_mask \
+  -f /app/prisma/migrations/20240101000000_init/down.sql
+```
+
+For incremental migrations in future releases, a new `down.sql` will accompany each `migration.sql` to ensure every deployment can be cleanly reversed.
 
 **Why normalize opening hours into a separate table?**
 The raw JSON stores hours as strings like `"Mon 08:00 - 17:00, Fri 09:00 - 18:00"`. A separate `PharmacyHours` table with `(dayOfWeek, openTime, closeTime)` columns makes time-based filtering a simple indexed `WHERE` clause and correctly handles midnight-spanning hours.
