@@ -9,32 +9,16 @@
 
 原始需求來源：[kdan-mobile-software-ltd/phantom_mask_bu2](https://github.com/kdan-mobile-software-ltd/phantom_mask_bu2)
 
-- [x] **列出藥局，可依指定時間與星期幾篩選**
-  - `GET /pharmacies?day=Mon&time=14:00` — 以 `PharmacyHours` 正規化表搭配 SQL `WHERE` 條件篩選，正確處理跨午夜時段
-
-- [x] **列出指定藥局販售的所有口罩，可依名稱或價格排序**
-  - `GET /pharmacies/:id/masks?sort=name|price` — 預設依名稱排序，`sort=price` 改依價格升冪排列
-
-- [x] **列出在指定價格區間內提供特定數量口罩商品的藥局（數量可大於、小於或介於閾值之間）**
-  - `GET /pharmacies/mask-count?minPrice=10&maxPrice=50&countMin=3&countMax=10` — 以 `COUNT` + `HAVING` 實作，三種情境均支援：
-    - 僅 `countMin=N` → 品項數 ≥ N（above）
-    - 僅 `countMax=N` → 品項數 ≤ N（below）
-    - 兩者都填 → N1 ≤ 品項數 ≤ N2（between）
-
-- [x] **顯示在特定日期區間內消費金額最高的前 N 名使用者**
-  - `GET /users/top-spenders?start=2024-12-01&end=2025-01-31&limit=10` — 以 `SUM(total_price)` 聚合並依 `transaction_date` 範圍過濾
-
-- [x] **處理購買交易，允許使用者一次從多家藥局購買口罩**
-  - `POST /purchases` — 以 Prisma `$transaction` 確保庫存扣減、使用者扣款、藥局入帳三步驟原子性執行，任一失敗全部回滾
-
-- [x] **更新現有口罩商品的庫存數量（可增加或減少）**
-  - `PATCH /masks/:id/stock` — 支援正負 delta，庫存低於 0 時回傳 422 Unprocessable Entity
-
-- [x] **一次批次建立或更新藥局的多個口罩商品（含名稱、價格、庫存數量）**
-  - `PATCH /pharmacies/:id/masks` — 以藥局 ID + 口罩名稱為 unique key 進行 upsert，清單以外的口罩保留不動
-
-- [x] **依名稱搜尋藥局或口罩，並依與搜尋詞的相關性排序結果**
-  - `GET /search?q=棉護` — 以 PostgreSQL `to_tsvector` + `ts_rank` + GIN 索引實作全文搜尋，搭配 `ILIKE` 作為繁體中文後備方案
+| # | 需求 | 狀態 | 實作方式 |
+|---|------|:----:|---------|
+| 1 | 列出藥局，可依指定時間與星期幾篩選 | ✅ | `GET /pharmacies?day=Mon&time=14:00`，以 `PharmacyHours` 正規化表搭配 SQL `WHERE` 條件篩選，正確處理跨午夜時段 |
+| 2 | 列出指定藥局販售的所有口罩，可依名稱或價格排序 | ✅ | `GET /pharmacies/:id/masks?sort=name\|price`，預設依名稱排序，`sort=price` 改依價格升冪排列 |
+| 3 | 列出在指定價格區間內提供特定數量口罩商品的藥局（above / below / between） | ✅ | `GET /pharmacies/mask-count?minPrice=10&maxPrice=50&countMin=3&countMax=10`，以 `COUNT` + `HAVING` 實作；僅填 `countMin` → 大於，僅填 `countMax` → 小於，兩者都填 → 介於之間 |
+| 4 | 顯示在特定日期區間內消費金額最高的前 N 名使用者 | ✅ | `GET /users/top-spenders?start=2024-12-01&end=2025-01-31&limit=10`，以 `SUM(total_price)` 聚合並依 `transaction_date` 範圍過濾 |
+| 5 | 處理購買交易，允許使用者一次從多家藥局購買口罩 | ✅ | `POST /purchases`，以 Prisma `$transaction` 確保庫存扣減、使用者扣款、藥局入帳三步驟原子性執行，任一失敗全部回滾 |
+| 6 | 更新現有口罩商品的庫存數量（增加或減少） | ✅ | `PATCH /masks/:id/stock`，支援正負 delta，庫存低於 0 時回傳 422 |
+| 7 | 批次建立或更新藥局的多個口罩商品（含名稱、價格、庫存） | ✅ | `PATCH /pharmacies/:id/masks`，以藥局 ID + 口罩名稱為 unique key 進行 upsert，清單以外的口罩保留不動 |
+| 8 | 依名稱搜尋藥局或口罩，並依相關性排序結果 | ✅ | `GET /search?q=棉護`，以 PostgreSQL `to_tsvector` + `ts_rank` + GIN 索引實作全文搜尋，搭配 `ILIKE` 作為繁體中文後備方案 |
 
 ---
 
