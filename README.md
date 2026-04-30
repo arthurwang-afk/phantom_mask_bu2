@@ -16,7 +16,10 @@
   - `GET /pharmacies/:id/masks?sort=name|price` — 預設依名稱排序，`sort=price` 改依價格升冪排列
 
 - [x] **列出在指定價格區間內提供特定數量口罩商品的藥局（數量可大於、小於或介於閾值之間）**
-  - `GET /pharmacies/mask-count?minPrice=10&maxPrice=50&countMin=3&countMax=10` — 以 `COUNT` + `HAVING` 實作，`countMin`／`countMax` 均為選填
+  - `GET /pharmacies/mask-count?minPrice=10&maxPrice=50&countMin=3&countMax=10` — 以 `COUNT` + `HAVING` 實作，三種情境均支援：
+    - 僅 `countMin=N` → 品項數 ≥ N（above）
+    - 僅 `countMax=N` → 品項數 ≤ N（below）
+    - 兩者都填 → N1 ≤ 品項數 ≤ N2（between）
 
 - [x] **顯示在特定日期區間內消費金額最高的前 N 名使用者**
   - `GET /users/top-spenders?start=2024-12-01&end=2025-01-31&limit=10` — 以 `SUM(total_price)` 聚合並依 `transaction_date` 範圍過濾
