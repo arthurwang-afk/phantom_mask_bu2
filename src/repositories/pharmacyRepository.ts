@@ -18,10 +18,8 @@ export async function findPharmaciesOpenAt(day: string, time: string) {
 
   return hours
     .filter(({ openTime, closeTime }) => {
-      const [oh, om] = openTime.split(':').map(Number)
-      const [ch, cm] = closeTime.split(':').map(Number)
-      const open = oh * 60 + om
-      const close = ch * 60 + cm
+      const open = openTime.getUTCHours() * 60 + openTime.getUTCMinutes()
+      const close = closeTime.getUTCHours() * 60 + closeTime.getUTCMinutes()
 
       if (close <= open) {
         // spans midnight

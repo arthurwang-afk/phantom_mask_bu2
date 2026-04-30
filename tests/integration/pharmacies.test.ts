@@ -2,6 +2,12 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { buildApp } from '../../src/app.js'
 import { prisma, truncateAll } from '../helpers/db.js'
 
+function utcTime(h: number, m: number): Date {
+  const d = new Date(0)
+  d.setUTCHours(h, m, 0, 0)
+  return d
+}
+
 describe('Pharmacy routes (real DB)', () => {
   let app: ReturnType<typeof buildApp>
   let pharmacyId: number
@@ -14,7 +20,7 @@ describe('Pharmacy routes (real DB)', () => {
         name: '康健藥局',
         cashBalance: 1000,
         hours: {
-          create: [{ dayOfWeek: 'Mon', openTime: '09:00', closeTime: '18:00' }],
+          create: [{ dayOfWeek: 'Mon', openTime: utcTime(9, 0), closeTime: utcTime(18, 0) }],
         },
         masks: {
           create: [
@@ -31,7 +37,7 @@ describe('Pharmacy routes (real DB)', () => {
         name: '健康藥局',
         cashBalance: 500,
         hours: {
-          create: [{ dayOfWeek: 'Tue', openTime: '10:00', closeTime: '17:00' }],
+          create: [{ dayOfWeek: 'Tue', openTime: utcTime(10, 0), closeTime: utcTime(17, 0) }],
         },
       },
     })

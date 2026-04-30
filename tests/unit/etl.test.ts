@@ -1,11 +1,17 @@
 import { describe, it, expect } from 'vitest'
 import { parseOpeningHours } from '../../prisma/seed/parseOpeningHours.js'
 
+function utcTime(h: number, m: number): Date {
+  const d = new Date(0)
+  d.setUTCHours(h, m, 0, 0)
+  return d
+}
+
 describe('parseOpeningHours', () => {
   it('parses single day entry', () => {
     const result = parseOpeningHours('Mon 08:00 - 17:00')
     expect(result).toHaveLength(1)
-    expect(result[0]).toEqual({ dayOfWeek: 'Mon', openTime: '08:00', closeTime: '17:00' })
+    expect(result[0]).toEqual({ dayOfWeek: 'Mon', openTime: utcTime(8, 0), closeTime: utcTime(17, 0) })
   })
 
   it('parses multiple comma-separated days', () => {
@@ -37,12 +43,12 @@ describe('parseOpeningHours', () => {
 
   it('handles midnight-spanning hours like 23:00 - 12:00', () => {
     const result = parseOpeningHours('Mon 23:00 - 12:00')
-    expect(result[0]).toEqual({ dayOfWeek: 'Mon', openTime: '23:00', closeTime: '12:00' })
+    expect(result[0]).toEqual({ dayOfWeek: 'Mon', openTime: utcTime(23, 0), closeTime: utcTime(12, 0) })
   })
 
-  it('handles 24:00 close time', () => {
+  it('handles 24:00 close time normalised to 23:59', () => {
     const result = parseOpeningHours('Mon 08:00 - 24:00')
-    expect(result[0]).toEqual({ dayOfWeek: 'Mon', openTime: '08:00', closeTime: '24:00' })
+    expect(result[0]).toEqual({ dayOfWeek: 'Mon', openTime: utcTime(8, 0), closeTime: utcTime(23, 59) })
   })
 
   it('throws on invalid format', () => {

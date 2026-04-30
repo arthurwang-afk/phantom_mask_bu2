@@ -11,8 +11,16 @@ const DAY_MAP: Record<string, string> = {
 
 export interface HoursEntry {
   dayOfWeek: string
-  openTime: string
-  closeTime: string
+  openTime: Date
+  closeTime: Date
+}
+
+function toTimeDate(hhmm: string): Date {
+  const [h, m] = hhmm.split(':').map(Number)
+  const d = new Date(0)
+  // 24:00 means "end of day midnight"; TIME type maxes at 23:59:59, so normalise to 23:59
+  d.setUTCHours(h === 24 ? 23 : h, h === 24 ? 59 : m, 0, 0)
+  return d
 }
 
 export function parseOpeningHours(str: string): HoursEntry[] {
@@ -26,12 +34,12 @@ export function parseOpeningHours(str: string): HoursEntry[] {
     if (!match) {
       throw new Error(`Invalid opening hours format: "${segment}"`)
     }
-    const [, dayRaw, openTime, closeTime] = match
+    const [, dayRaw, openHhmm, closeHhmm] = match
     const dayOfWeek = DAY_MAP[dayRaw]
     if (!dayOfWeek) {
       throw new Error(`Unknown day: "${dayRaw}"`)
     }
-    results.push({ dayOfWeek, openTime, closeTime })
+    results.push({ dayOfWeek, openTime: toTimeDate(openHhmm), closeTime: toTimeDate(closeHhmm) })
   }
 
   if (results.length === 0) {

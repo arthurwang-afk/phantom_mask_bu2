@@ -23,8 +23,8 @@ model PharmacyHours {
   id         Int      @id @default(autoincrement())
   pharmacyId Int      @map("pharmacy_id")
   dayOfWeek  String   @map("day_of_week")
-  openTime   String   @map("open_time")
-  closeTime  String   @map("close_time")
+  openTime   DateTime @map("open_time")  @db.Time(0)
+  closeTime  DateTime @map("close_time") @db.Time(0)
   pharmacy   Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
 
   @@index([dayOfWeek, openTime, closeTime])

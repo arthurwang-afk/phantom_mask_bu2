@@ -33,6 +33,11 @@ export async function listByMaskCount(filters: {
   countMin?: number
   countMax?: number
 }) {
+  if (filters.minPrice > filters.maxPrice) {
+    const err: any = new Error('minPrice must be less than or equal to maxPrice')
+    err.statusCode = 400
+    throw err
+  }
   return repo.findPharmaciesByMaskCount(filters)
 }
 
