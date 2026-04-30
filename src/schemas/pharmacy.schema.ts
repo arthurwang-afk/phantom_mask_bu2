@@ -23,6 +23,10 @@ export const listPharmaciesSchema = {
   response: {
     200: {
       type: 'array',
+      example: [
+        { id: 1, name: '康健藥局', cashBalance: 1000.0 },
+        { id: 2, name: '健康藥局', cashBalance: 500.0 },
+      ],
       items: {
         type: 'object',
         properties: {
@@ -55,6 +59,10 @@ export const listMasksSchema = {
   response: {
     200: {
       type: 'array',
+      example: [
+        { id: 1, name: '棉護口罩（藍色）3入', price: 10.0, stockQuantity: 50 },
+        { id: 2, name: '醫守口罩（白色）6入', price: 25.0, stockQuantity: 30 },
+      ],
       items: {
         type: 'object',
         properties: {
@@ -86,6 +94,10 @@ export const maskCountSchema = {
   response: {
     200: {
       type: 'array',
+      example: [
+        { id: 1, name: '康健藥局', cashBalance: 1000.0, maskCount: 5 },
+        { id: 2, name: '健康藥局', cashBalance: 500.0, maskCount: 3 },
+      ],
       items: {
         type: 'object',
         properties: {
@@ -132,6 +144,10 @@ export const upsertMasksSchema = {
   response: {
     200: {
       type: 'array',
+      example: [
+        { id: 1, pharmacyId: 1, name: '棉護口罩（藍色）3入', price: 25.0, stockQuantity: 100 },
+        { id: 2, pharmacyId: 1, name: '醫守口罩（白色）6入', price: 15.0, stockQuantity: 50 },
+      ],
       items: {
         type: 'object',
         properties: {

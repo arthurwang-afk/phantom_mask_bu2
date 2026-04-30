@@ -20,6 +20,10 @@ export const searchSchema = {
   response: {
     200: {
       type: 'object',
+      example: {
+        pharmacies: [{ id: 1, name: '康健藥局', cashBalance: 1000.0 }],
+        masks: [{ id: 1, name: '棉護口罩（藍色）3入', price: 10.0, stockQuantity: 50, pharmacyId: 1 }],
+      },
       properties: {
         pharmacies: {
           type: 'array',

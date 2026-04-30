@@ -1,50 +1,50 @@
-# PharmaMask — Response
+# Response
 
-## 1. Requirement Completion Rate
+## Requirement Completion Rate
 
-| # | Feature | Status |
-|---|---------|--------|
-| 1 | List pharmacies, optionally filtered by day / time | ✅ `GET /pharmacies?day=Mon&time=14:00` |
-| 2 | List masks sold by a pharmacy, sortable by name or price | ✅ `GET /pharmacies/:id/masks?sort=name\|price` |
-| 3 | Pharmacies with mask count in a price range | ✅ `GET /pharmacies/mask-count?minPrice=&maxPrice=&countMin=` |
-| 4 | Top N users by spending in a date range | ✅ `GET /users/top-spenders?start=&end=&limit=` |
-| 5 | Purchase transaction (atomic, multi-pharmacy capable) | ✅ `POST /purchases` |
-| 6 | Adjust mask stock quantity | ✅ `PATCH /masks/:id/stock` |
-| 7 | Batch create / update masks for a pharmacy | ✅ `PUT /pharmacies/:id/masks` |
-| 8 | Search pharmacies and masks by name, ranked by relevance | ✅ `GET /search?q=` |
+- [x] List pharmacies, optionally filtered by specific time and/or day of the week.
+  - Implemented at `GET /pharmacies?day=Mon&time=14:00`
+- [x] List all masks sold by a given pharmacy with an option to sort by name or price.
+  - Implemented at `GET /pharmacies/:id/masks?sort=name|price`
+- [x] List all pharmacies that offer a number of mask products within a given price range, where the count is above, below, or between given thresholds.
+  - Implemented at `GET /pharmacies/mask-count?minPrice=10&maxPrice=50&countMin=3&countMax=10`
+- [x] Show the top N users who spent the most on masks during a specific date range.
+  - Implemented at `GET /users/top-spenders?start=2024-12-01&end=2025-01-31&limit=10`
+- [x] Process a purchase where a user buys masks from multiple pharmacies at once.
+  - Implemented at `POST /purchases`
+- [x] Update the stock quantity of an existing mask product by increasing or decreasing it.
+  - Implemented at `PATCH /masks/:id/stock`
+- [x] Create or update multiple mask products for a pharmacy at once, including name, price, and stock quantity.
+  - Implemented at `PUT /pharmacies/:id/masks`
+- [x] Search for pharmacies or masks by name and rank the results by relevance to the search term.
+  - Implemented at `GET /search?q=棉護`
 
 ---
 
-## 2. API Documentation
+## API Document
 
-Interactive Swagger UI is available at **`http://localhost:3000/docs`** after startup.
+Interactive Swagger UI is available at **`http://localhost:3000/docs`** after startup. Every endpoint documents its path, method, request parameters, response schema with examples, and error codes.
 
 ### Endpoint Reference
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/healthz` | Health check — returns `{ status: "ok" }` |
-| GET | `/pharmacies` | List all pharmacies. Optional: `?day=Mon&time=14:00` to filter by operating hours |
-| GET | `/pharmacies/:id/masks` | List masks for a pharmacy. Optional: `?sort=name\|price` |
-| GET | `/pharmacies/mask-count` | Filter pharmacies by mask count in price range. Required: `minPrice`, `maxPrice`. Optional: `countMin`, `countMax` |
-| PUT | `/pharmacies/:id/masks` | Batch create/update masks. Body: `{ masks: [{name, price, stockQuantity}] }` |
-| GET | `/users/top-spenders` | Top N spenders. Required: `start`, `end` (YYYY-MM-DD). Optional: `limit` (default 10) |
-| POST | `/purchases` | Purchase transaction. Body: `{ userId, items: [{maskId, quantity}] }` |
-| PATCH | `/masks/:id/stock` | Adjust stock. Body: `{ adjustment: number }` (positive = add, negative = deduct) |
-| GET | `/search` | Search pharmacies and masks by name. Required: `q` |
-| GET | `/docs` | Swagger UI |
+| GET | `/healthz` | Health check |
+| GET | `/pharmacies` | List pharmacies. Query: `day` (Mon/Tue/…), `time` (HH:MM) |
+| GET | `/pharmacies/:id/masks` | List masks for a pharmacy. Query: `sort=name\|price` |
+| GET | `/pharmacies/mask-count` | Pharmacies by mask count in price range. Query: `minPrice`*, `maxPrice`*, `countMin`, `countMax` |
+| PUT | `/pharmacies/:id/masks` | Batch create/update masks |
+| GET | `/users/top-spenders` | Top N spenders. Query: `start`*, `end`* (YYYY-MM-DD), `limit` (default 10) |
+| POST | `/purchases` | Atomic purchase transaction |
+| PATCH | `/masks/:id/stock` | Adjust mask stock |
+| GET | `/search` | Search by name with relevance ranking. Query: `q`* |
 
-### Response / Error Codes
+`*` = required
 
-| Code | Meaning | Trigger |
-|------|---------|---------|
-| 200 | OK | Successful GET / PATCH / PUT |
-| 201 | Created | Successful POST /purchases |
-| 400 | Bad Request | Missing required params, invalid format, empty array |
-| 404 | Not Found | Pharmacy / mask / user does not exist |
-| 422 | Unprocessable Entity | Insufficient balance or stock |
+### Error Response Format
 
-All error responses follow this format:
+All errors follow a unified format:
+
 ```json
 {
   "statusCode": 422,
@@ -53,35 +53,39 @@ All error responses follow this format:
 }
 ```
 
+| Code | Meaning | Example Trigger |
+|------|---------|-----------------|
+| 400 | Bad Request | Missing required param, invalid format, empty array |
+| 404 | Not Found | Pharmacy / mask / user does not exist |
+| 422 | Unprocessable Entity | Insufficient balance or stock |
+
 ---
 
-## 3. Data Import Commands
+## Import Data Commands
 
-### Docker (recommended)
-
-Data is imported automatically on every container start:
+### Docker (recommended — runs automatically)
 
 ```bash
 docker compose up -d
-# migrate + seed runs automatically inside the container
+# migrate + seed execute automatically inside the container on every start
 ```
 
 ### Local
 
 ```bash
-# 1. Apply database migrations
+# Apply database schema migrations
 npx prisma migrate deploy
 
-# 2. Import pharmacy and user seed data (idempotent — safe to re-run)
+# Import pharmacy and user seed data (idempotent — safe to re-run)
 npm run seed
 ```
 
-The seed script (`prisma/seed/index.ts`) reads `data/pharmacies.json` and `data/users.json`, cleans and transforms the data, then upserts all records into PostgreSQL via Prisma.
+The seed script (`prisma/seed/index.ts`) reads `data/pharmacies.json` and `data/users.json`, parses and cleans the data (opening hours, price formats, datetime strings), then upserts all records atomically via `prisma.$transaction`.
 
-Seed data imported:
+Seeded data:
 
-| Dataset | Count |
-|---------|-------|
+| Dataset | Records |
+|---------|---------|
 | Pharmacies | 20 (with opening hours) |
 | Masks | 95 |
 | Users | 20 |
@@ -89,16 +93,18 @@ Seed data imported:
 
 ---
 
-## 4. Test Coverage Report
+## Test Coverage Report
+
+I wrote 79 tests covering all primary success and failure scenarios.
 
 ```bash
-# Run unit tests (no database required)
+# Unit tests — no database required (38 tests)
 npm test
 
-# Run integration tests (requires Docker DB)
+# Integration tests — requires running PostgreSQL (41 tests)
 npm run test:integration
 
-# Run all tests
+# All tests
 npm run test:all
 
 # Generate coverage report
@@ -107,19 +113,18 @@ npm run test:coverage
 
 | Layer | Tests | Coverage |
 |-------|-------|----------|
-| `services/` (unit) | 38 | ~95% |
-| `routes/` (integration, real DB) | 41 | ~75% |
-| **Total** | **79** | |
+| `services/` unit tests | 38 | ~95% |
+| `routes/` integration tests (real DB) | 41 | ~75% |
 
 Coverage targets: `services/` > 80% ✅ · `routes/` > 70% ✅
 
 ---
 
-## 5. Deployment Instructions
+## Deployment
 
-### Docker (one-click, recommended)
+### Docker (one-click)
 
-**Prerequisites: [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running**
+**Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running.
 
 ```bash
 git clone https://gitlab.com/think4u-internal/pharmamask.git
@@ -137,34 +142,34 @@ chmod +x start.sh
 ./start.sh
 ```
 
-The script starts PostgreSQL, runs migrations, imports seed data, starts the API server, and opens the browser automatically.
+The script automatically: starts PostgreSQL 16 → runs `prisma migrate deploy` → seeds data → starts Fastify server → opens browser when ready.
 
 | Service | URL |
 |---------|-----|
-| Frontend | http://localhost:3000 |
+| Frontend SPA | http://localhost:3000 |
 | Swagger UI | http://localhost:3000/docs |
 | Health check | http://localhost:3000/healthz |
 
-To stop:
 ```bash
+# Stop all services
 docker compose down
 ```
 
 ### Local Development (without Docker)
 
-**Prerequisites: Node.js 20+, PostgreSQL 16**
+**Prerequisites:** Node.js 20+, PostgreSQL 16
 
 ```bash
 npm install
 cp .env.example .env        # edit DATABASE_URL if needed
 npx prisma migrate deploy
 npm run seed
-npm run dev                 # hot-reload dev server
+npm run dev                 # hot-reload dev server on port 3000
 ```
 
----
+### Environment Variables
 
-## 6. Environment Variables
+> All secrets are managed via environment variables. `.env` is excluded from version control. No secrets are hardcoded in source code.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -172,85 +177,65 @@ npm run dev                 # hot-reload dev server
 | `PORT` | Server listen port | `3000` |
 | `NODE_ENV` | Runtime environment | `development` |
 
-All secrets are managed via environment variables. The `.env` file is excluded from version control (`.gitignore`). No secrets are hardcoded in source code.
-
-See `.env.example` for a complete template.
+See `.env.example` for the full template.
 
 ---
 
-## 7. Technical Decisions
+## Additional Data
 
-### Database Design
+### Entity Relationship Diagram
 
-The raw data stores opening hours as a single string per pharmacy (e.g. `"Mon 08:00 - 17:00, Fri 09:00 - 18:00"`). Storing this as a string would make time-based filtering impossible without expensive string parsing at query time.
+```mermaid
+erDiagram
+    Pharmacy ||--o{ PharmacyHours : has
+    Pharmacy ||--o{ Mask : sells
+    Pharmacy ||--o{ PurchaseHistory : receives
+    User ||--o{ PurchaseHistory : makes
+    Mask ||--o{ PurchaseHistory : included_in
 
-By normalizing into `PharmacyHours(pharmacyId, dayOfWeek, openTime, closeTime)`:
-- Day/time filtering is a simple `WHERE` clause
-- `(dayOfWeek, openTime, closeTime)` index enables efficient lookups
-- Midnight-spanning hours (e.g. `17:00 - 05:00`) are handled correctly in application logic
-
-**Index strategy:**
-
-| Index | Purpose |
-|-------|---------|
-| `PharmacyHours(dayOfWeek, openTime, closeTime)` | Day/time availability queries |
-| `Mask(pharmacyId, price)` | Price-range filter + pharmacy join |
-| `PurchaseHistory(userId, transactionDate)` | User spending analytics by date |
-| GIN on `Mask(name)` | Full-text search on mask names |
-| GIN on `Pharmacy(name)` | Full-text search on pharmacy names |
-
-### ETL Data Cleaning
-
-The opening hours parser handles all observed format variations:
-- Single day: `"Mon 08:00 - 17:00"`
-- Multi-day comma list: `"Mon 08:00 - 17:00, Fri 09:00 - 18:00"`
-- `"Thur"` abbreviation (non-standard — normalised to `"Thu"`)
-- Midnight-spanning: `"17:00 - 05:00"`, `"23:00 - 12:00"`
-- `"24:00"` close time (treated as end of day)
-- Extra whitespace: `"Mon 08:00 - 22:00 , Thur 08:00 - 22:00"`
-
-The seed script wraps all inserts in `prisma.$transaction` for atomic imports — if any record fails, the entire import rolls back.
-
-### Search Implementation
-
-Search uses PostgreSQL built-in full-text search:
-
-```sql
-SELECT id, name,
-  ts_rank(to_tsvector('english', name), to_tsquery('english', 'mask:*')) AS rank
-FROM masks
-WHERE to_tsvector('english', name) @@ to_tsquery('english', 'mask:*')
-   OR name ILIKE '%mask%'
-ORDER BY rank DESC, name ASC
+    Pharmacy {
+        int id PK
+        string name UK
+        decimal cash_balance
+    }
+    PharmacyHours {
+        int id PK
+        int pharmacy_id FK
+        string day_of_week
+        string open_time
+        string close_time
+    }
+    Mask {
+        int id PK
+        int pharmacy_id FK
+        string name
+        decimal price
+        int stock_quantity
+    }
+    User {
+        int id PK
+        string name UK
+        decimal cash_balance
+    }
+    PurchaseHistory {
+        int id PK
+        int user_id FK
+        int pharmacy_id FK
+        int mask_id FK
+        string mask_name
+        int quantity
+        decimal total_price
+        datetime transaction_date
+    }
 ```
 
-- `to_tsvector` + `to_tsquery` with prefix matching (`:*`) enables partial-word matches
-- `ts_rank` provides relevance scoring for results ordering
-- `ILIKE` fallback catches terms the tsvector misses (e.g. non-Latin characters)
-- GIN indexes on both tables keep queries fast at scale
+### Key Design Decisions
 
-### Transaction Design
+**Why normalize opening hours into a separate table?**
+The raw JSON stores hours as strings like `"Mon 08:00 - 17:00, Fri 09:00 - 18:00"`. A separate `PharmacyHours` table with `(dayOfWeek, openTime, closeTime)` columns makes time-based filtering a simple indexed `WHERE` clause and correctly handles midnight-spanning hours.
 
-`POST /purchases` uses Prisma interactive transaction (`$transaction(async tx => {...})`) to guarantee atomicity:
+**Why store `maskName` as a snapshot in `PurchaseHistory`?**
+Mask names and prices can change. Storing the name at purchase time ensures historical records remain accurate even after product updates.
 
-1. Validate user exists
-2. Validate all masks exist and have sufficient stock
-3. Validate user has sufficient balance
-4. Within the same transaction: deduct user balance · decrement mask stock · increment pharmacy balance · create purchase history records
-
-If any step fails, all changes roll back. `totalPrice` in `PurchaseHistory` stores the price snapshot at purchase time — price changes never corrupt historical records.
-
-### Testing Strategy
-
-**Unit tests** (`tests/unit/`) — 38 tests, no database required
-
-Mock the repository layer with `vi.mock()` and test business logic in isolation:
-- Input validation (400 / 404 / 422 error paths)
-- Correct delegation to repositories
-- Edge cases (midnight hours, empty queries, zero adjustment)
-
-**Integration tests** (`tests/integration/`) — 41 tests, requires PostgreSQL
-
-Connect to a real PostgreSQL instance using an isolated `schema=test` (separate from development data). Each test file truncates all tables in `beforeAll`, inserts its own fixtures, then asserts against real query results. Tests run sequentially to avoid cross-file interference.
-
-This layered approach gives high confidence in both business logic and the full HTTP stack, while keeping unit tests fast and runnable without infrastructure.
+**Why use PostgreSQL full-text search with ILIKE fallback?**
+`to_tsvector` + `to_tsquery` + `ts_rank` provides relevance-ranked results and leverages GIN indexes for performance. The `ILIKE` fallback catches search terms that the English-configured tsvector misses (e.g. non-Latin characters).

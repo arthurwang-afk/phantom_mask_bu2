@@ -32,6 +32,19 @@ export const purchaseSchema = {
   response: {
     201: {
       type: 'object',
+      example: {
+        totalAmount: 30.0,
+        purchaseCount: 1,
+        items: [
+          {
+            maskId: 3,
+            maskName: '棉護口罩（藍色）3入',
+            quantity: 2,
+            unitPrice: 15.0,
+            subtotal: 30.0,
+          },
+        ],
+      },
       properties: {
         totalAmount: { type: 'number' },
         purchaseCount: { type: 'integer' },

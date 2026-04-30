@@ -22,6 +22,11 @@ export const topSpendersSchema = {
   response: {
     200: {
       type: 'array',
+      example: [
+        { id: 1, name: '游雅文', totalSpent: 320.5 },
+        { id: 2, name: '賴思妤', totalSpent: 210.0 },
+        { id: 3, name: '方佳慧', totalSpent: 150.0 },
+      ],
       items: {
         type: 'object',
         properties: {

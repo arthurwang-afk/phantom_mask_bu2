@@ -27,6 +27,7 @@ export const adjustStockSchema = {
   response: {
     200: {
       type: 'object',
+      example: { id: 1, pharmacyId: 1, name: '棉護口罩（藍色）3入', price: 10.0, stockQuantity: 25 },
       properties: {
         id: { type: 'integer' },
         pharmacyId: { type: 'integer' },
