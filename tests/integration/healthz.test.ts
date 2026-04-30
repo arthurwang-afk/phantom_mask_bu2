@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { buildApp } from '../../src/app.js'
 
-describe('GET /healthz', () => {
+describe('GET /healthz (real DB)', () => {
   let app: ReturnType<typeof buildApp>
 
   beforeAll(async () => {

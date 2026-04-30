@@ -1,60 +1,88 @@
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { buildApp } from '../../src/app.js'
+import { prisma, truncateAll } from '../helpers/db.js'
 
-vi.mock('../../src/repositories/maskRepository.js', () => {
-  const baseMask = {
-    id: 1,
-    pharmacyId: 1,
-    name: 'Test Mask',
-    price: 10.0,
-    stockQuantity: 20,
-    pharmacy: { id: 1, name: 'Pharmacy A', cashBalance: 100 },
-  }
-  return {
-    findMaskById: vi.fn().mockImplementation((id: number) => {
-      if (id === 1) return Promise.resolve(baseMask)
-      return Promise.resolve(null)
-    }),
-    adjustMaskStock: vi.fn().mockResolvedValue({ ...baseMask, stockQuantity: 25 }),
-  }
-})
-
-describe('PATCH /masks/:id/stock', () => {
+describe('PATCH /masks/:id/stock (real DB)', () => {
   let app: ReturnType<typeof buildApp>
+  let maskId: number
 
   beforeAll(async () => {
+    await truncateAll()
+
+    const pharmacy = await prisma.pharmacy.create({
+      data: { name: '庫存測試藥局', cashBalance: 0 },
+    })
+    const mask = await prisma.mask.create({
+      data: { pharmacyId: pharmacy.id, name: '庫存測試口罩', price: 10, stockQuantity: 20 },
+    })
+    maskId = mask.id
+
     app = buildApp()
     await app.ready()
   })
 
   afterAll(async () => {
     await app.close()
+    await truncateAll()
   })
 
-  it('increases stock by positive adjustment', async () => {
+  it('increases stock by a positive adjustment', async () => {
     const res = await app.inject({
       method: 'PATCH',
-      url: '/masks/1/stock',
+      url: `/masks/${maskId}/stock`,
       payload: { adjustment: 5 },
     })
     expect(res.statusCode).toBe(200)
     const body = JSON.parse(res.body)
-    expect(body).toHaveProperty('stockQuantity')
+    expect(body.stockQuantity).toBe(25)
   })
 
-  it('returns 400 for zero adjustment', async () => {
+  it('decreases stock by a negative adjustment', async () => {
     const res = await app.inject({
       method: 'PATCH',
-      url: '/masks/1/stock',
+      url: `/masks/${maskId}/stock`,
+      payload: { adjustment: -10 },
+    })
+    expect(res.statusCode).toBe(200)
+    const body = JSON.parse(res.body)
+    expect(body.stockQuantity).toBe(15)
+  })
+
+  it('returns updated mask with price and pharmacyId', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/masks/${maskId}/stock`,
+      payload: { adjustment: 1 },
+    })
+    const body = JSON.parse(res.body)
+    expect(body).toHaveProperty('id')
+    expect(body).toHaveProperty('name')
+    expect(body).toHaveProperty('price')
+    expect(body).toHaveProperty('pharmacyId')
+  })
+
+  it('returns 400 when adjustment is 0', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/masks/${maskId}/stock`,
       payload: { adjustment: 0 },
     })
     expect(res.statusCode).toBe(400)
   })
 
+  it('returns 422 when negative adjustment exceeds current stock', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/masks/${maskId}/stock`,
+      payload: { adjustment: -9999 },
+    })
+    expect(res.statusCode).toBe(422)
+  })
+
   it('returns 404 for non-existent mask', async () => {
     const res = await app.inject({
       method: 'PATCH',
-      url: '/masks/999/stock',
+      url: '/masks/99999/stock',
       payload: { adjustment: 5 },
     })
     expect(res.statusCode).toBe(404)
