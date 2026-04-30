@@ -28,7 +28,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: sh -c "npx prisma migrate deploy && npm run seed && node --loader tsx/esm src/server.ts"
+    command: sh -c "npx prisma migrate deploy && npm run seed && npx tsx src/server.ts"
 
 volumes:
   postgres_data:
