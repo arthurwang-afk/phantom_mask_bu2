@@ -1,3 +1,12 @@
+const errorSchema = {
+  type: 'object',
+  properties: {
+    statusCode: { type: 'integer' },
+    error: { type: 'string' },
+    message: { type: 'string' },
+  },
+}
+
 export const listPharmaciesSchema = {
   description: 'List pharmacies with optional day/time filter',
   tags: ['pharmacies'],
@@ -23,6 +32,7 @@ export const listPharmaciesSchema = {
         },
       },
     },
+    400: errorSchema,
   },
 }
 
@@ -55,6 +65,8 @@ export const listMasksSchema = {
         },
       },
     },
+    400: errorSchema,
+    404: errorSchema,
   },
 }
 
@@ -70,6 +82,21 @@ export const maskCountSchema = {
       countMin: { type: 'integer', minimum: 0 },
       countMax: { type: 'integer', minimum: 0 },
     },
+  },
+  response: {
+    200: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'integer' },
+          name: { type: 'string' },
+          cashBalance: { type: 'number' },
+          maskCount: { type: 'integer' },
+        },
+      },
+    },
+    400: errorSchema,
   },
 }
 
@@ -101,5 +128,22 @@ export const upsertMasksSchema = {
         },
       },
     },
+  },
+  response: {
+    200: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'integer' },
+          pharmacyId: { type: 'integer' },
+          name: { type: 'string' },
+          price: { type: 'number' },
+          stockQuantity: { type: 'integer' },
+        },
+      },
+    },
+    400: errorSchema,
+    404: errorSchema,
   },
 }

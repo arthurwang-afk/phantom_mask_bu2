@@ -1,3 +1,12 @@
+const errorSchema = {
+  type: 'object',
+  properties: {
+    statusCode: { type: 'integer' },
+    error: { type: 'string' },
+    message: { type: 'string' },
+  },
+}
+
 export const purchaseSchema = {
   description: 'Purchase masks from pharmacies',
   tags: ['purchases'],
@@ -19,5 +28,30 @@ export const purchaseSchema = {
         },
       },
     },
+  },
+  response: {
+    201: {
+      type: 'object',
+      properties: {
+        totalAmount: { type: 'number' },
+        purchaseCount: { type: 'integer' },
+        items: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              maskId: { type: 'integer' },
+              maskName: { type: 'string' },
+              quantity: { type: 'integer' },
+              unitPrice: { type: 'number' },
+              subtotal: { type: 'number' },
+            },
+          },
+        },
+      },
+    },
+    400: errorSchema,
+    404: errorSchema,
+    422: errorSchema,
   },
 }
