@@ -1,11 +1,8 @@
 import { searchAll } from '../repositories/searchRepository.js'
+import { ValidationError } from '../errors.js'
 
-export async function search(q: string) {
+export async function search(q: string, page = 1, pageSize = 20) {
   const trimmed = q.trim()
-  if (!trimmed) {
-    const err: any = new Error('Search query cannot be empty')
-    err.statusCode = 400
-    throw err
-  }
-  return searchAll(trimmed)
+  if (!trimmed) throw new ValidationError('Search query cannot be empty')
+  return searchAll(trimmed, page, pageSize)
 }

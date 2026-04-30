@@ -17,14 +17,14 @@ describe('SearchService.search', () => {
   it('returns pharmacies and masks for valid query', async () => {
     vi.mocked(repo.searchAll).mockResolvedValue(mockResult as any)
     const result = await searchService.search('棉吻')
-    expect(repo.searchAll).toHaveBeenCalledWith('棉吻')
+    expect(repo.searchAll).toHaveBeenCalledWith('棉吻', 1, 20)
     expect(result).toEqual(mockResult)
   })
 
   it('trims whitespace before calling repository', async () => {
     vi.mocked(repo.searchAll).mockResolvedValue(mockResult as any)
     await searchService.search('  德福  ')
-    expect(repo.searchAll).toHaveBeenCalledWith('德福')
+    expect(repo.searchAll).toHaveBeenCalledWith('德福', 1, 20)
   })
 
   it('throws 400 when query is empty string', async () => {

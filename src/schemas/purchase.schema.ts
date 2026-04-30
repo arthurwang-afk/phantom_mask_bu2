@@ -8,13 +8,13 @@ const errorSchema = {
 }
 
 export const purchaseSchema = {
-  description: 'Purchase masks from pharmacies',
+  description: 'Purchase masks (requires auth — userId taken from JWT token)',
   tags: ['purchases'],
+  security: [{ bearerAuth: [] }],
   body: {
     type: 'object',
-    required: ['userId', 'items'],
+    required: ['items'],
     properties: {
-      userId: { type: 'integer' },
       items: {
         type: 'array',
         minItems: 1,
@@ -32,19 +32,6 @@ export const purchaseSchema = {
   response: {
     201: {
       type: 'object',
-      example: {
-        totalAmount: 30.0,
-        purchaseCount: 1,
-        items: [
-          {
-            maskId: 3,
-            maskName: '棉護口罩（藍色）3入',
-            quantity: 2,
-            unitPrice: 15.0,
-            subtotal: 30.0,
-          },
-        ],
-      },
       properties: {
         totalAmount: { type: 'number' },
         purchaseCount: { type: 'integer' },
@@ -64,6 +51,7 @@ export const purchaseSchema = {
       },
     },
     400: errorSchema,
+    401: errorSchema,
     404: errorSchema,
     422: errorSchema,
   },

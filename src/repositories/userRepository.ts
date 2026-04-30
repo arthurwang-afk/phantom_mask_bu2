@@ -23,3 +23,7 @@ export async function findTopSpenders(start: Date, end: Date, limit: number) {
 export async function findUserById(id: number) {
   return prisma.user.findUnique({ where: { id } })
 }
+
+export async function findUserByName(name: string) {
+  return prisma.user.findUnique({ where: { name } })
+}

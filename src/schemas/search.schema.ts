@@ -8,45 +8,56 @@ const errorSchema = {
 }
 
 export const searchSchema = {
-  description: 'Search pharmacies and masks by name',
+  description: 'Search pharmacies and masks by name with pagination',
   tags: ['search'],
   querystring: {
     type: 'object',
     required: ['q'],
     properties: {
       q: { type: 'string', minLength: 1 },
+      page: { type: 'integer', minimum: 1, default: 1 },
+      pageSize: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
     },
   },
   response: {
     200: {
       type: 'object',
-      example: {
-        pharmacies: [{ id: 1, name: '康健藥局', cashBalance: 1000.0 }],
-        masks: [{ id: 1, name: '棉護口罩（藍色）3入', price: 10.0, stockQuantity: 50, pharmacyId: 1 }],
-      },
       properties: {
-        pharmacies: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'integer' },
-              name: { type: 'string' },
-              cashBalance: { type: 'number' },
+        data: {
+          type: 'object',
+          properties: {
+            pharmacies: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'integer' },
+                  name: { type: 'string' },
+                },
+              },
+            },
+            masks: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'integer' },
+                  name: { type: 'string' },
+                  price: { type: 'number' },
+                  stockQuantity: { type: 'integer' },
+                  pharmacyId: { type: 'integer' },
+                },
+              },
             },
           },
         },
-        masks: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'integer' },
-              name: { type: 'string' },
-              price: { type: 'number' },
-              stockQuantity: { type: 'integer' },
-              pharmacyId: { type: 'integer' },
-            },
+        pagination: {
+          type: 'object',
+          properties: {
+            pharmaciesTotal: { type: 'integer' },
+            masksTotal: { type: 'integer' },
+            page: { type: 'integer' },
+            pageSize: { type: 'integer' },
           },
         },
       },

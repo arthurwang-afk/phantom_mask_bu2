@@ -25,7 +25,7 @@ describe('PharmacyService.listPharmacies', () => {
     vi.mocked(repo.findPharmaciesOpenAt).mockResolvedValue([mockPharmacies[0]] as any)
     const result = await pharmacyService.listPharmacies('Mon', '14:00')
     expect(result).toHaveLength(1)
-    expect(repo.findPharmaciesOpenAt).toHaveBeenCalledWith('Mon', '14:00')
+    expect(repo.findPharmaciesOpenAt).toHaveBeenCalledWith('Mon', '14:00', 1, 20)
   })
 
   it('throws 400 when time provided without day', async () => {
@@ -42,7 +42,7 @@ describe('PharmacyService.listMasks', () => {
       { id: 1, name: 'Alpha Mask', price: 10, stockQuantity: 5 },
     ] as any)
     const result = await pharmacyService.listMasks(1)
-    expect(repo.findMasksByPharmacy).toHaveBeenCalledWith(1, 'name')
+    expect(repo.findMasksByPharmacy).toHaveBeenCalledWith(1, 'name', 1, 20)
     expect(result).toHaveLength(1)
   })
 
@@ -50,14 +50,14 @@ describe('PharmacyService.listMasks', () => {
     vi.mocked(repo.findPharmacyById).mockResolvedValue(mockPharmacies[0] as any)
     vi.mocked(repo.findMasksByPharmacy).mockResolvedValue([])
     await pharmacyService.listMasks(1, 'price')
-    expect(repo.findMasksByPharmacy).toHaveBeenCalledWith(1, 'price')
+    expect(repo.findMasksByPharmacy).toHaveBeenCalledWith(1, 'price', 1, 20)
   })
 
   it('sorts by name when sort=name', async () => {
     vi.mocked(repo.findPharmacyById).mockResolvedValue(mockPharmacies[0] as any)
     vi.mocked(repo.findMasksByPharmacy).mockResolvedValue([])
     await pharmacyService.listMasks(1, 'name')
-    expect(repo.findMasksByPharmacy).toHaveBeenCalledWith(1, 'name')
+    expect(repo.findMasksByPharmacy).toHaveBeenCalledWith(1, 'name', 1, 20)
   })
 
   it('throws 400 for invalid sort value', async () => {

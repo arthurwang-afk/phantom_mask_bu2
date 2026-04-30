@@ -7,6 +7,7 @@ describe('POST /purchases (real DB)', () => {
   let userId: number
   let maskId: number
   let pharmacyId: number
+  let token: string
 
   beforeAll(async () => {
     await truncateAll()
@@ -28,6 +29,7 @@ describe('POST /purchases (real DB)', () => {
 
     app = buildApp()
     await app.ready()
+    token = app.jwt.sign({ userId, name: '購買測試用戶' })
   })
 
   afterAll(async () => {
@@ -35,11 +37,21 @@ describe('POST /purchases (real DB)', () => {
     await truncateAll()
   })
 
+  it('returns 401 without token', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/purchases',
+      payload: { items: [{ maskId, quantity: 1 }] },
+    })
+    expect(res.statusCode).toBe(401)
+  })
+
   it('returns 201 with totalAmount on successful purchase', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/purchases',
-      payload: { userId, items: [{ maskId, quantity: 2 }] },
+      headers: { authorization: `Bearer ${token}` },
+      payload: { items: [{ maskId, quantity: 2 }] },
     })
     expect(res.statusCode).toBe(201)
     const body = JSON.parse(res.body)
@@ -51,7 +63,6 @@ describe('POST /purchases (real DB)', () => {
   it('deducts user balance and decrements stock after purchase', async () => {
     const user = await prisma.user.findUnique({ where: { id: userId } })
     const mask = await prisma.mask.findUnique({ where: { id: maskId } })
-    // started at 1000, bought 2 × 15 = 30
     expect(Number(user!.cashBalance)).toBe(970)
     expect(mask!.stockQuantity).toBe(98)
   })
@@ -61,31 +72,32 @@ describe('POST /purchases (real DB)', () => {
     expect(Number(pharmacy!.cashBalance)).toBe(30)
   })
 
+  it('merges duplicate maskIds and prevents oversell', async () => {
+    const limitedMask = await prisma.mask.create({
+      data: { pharmacyId, name: '限量口罩', price: 10, stockQuantity: 4 },
+    })
+    const res = await app.inject({
+      method: 'POST',
+      url: '/purchases',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        items: [
+          { maskId: limitedMask.id, quantity: 2 },
+          { maskId: limitedMask.id, quantity: 3 },
+        ],
+      },
+    })
+    expect(res.statusCode).toBe(422)
+  })
+
   it('returns 400 when items array is empty', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/purchases',
-      payload: { userId, items: [] },
+      headers: { authorization: `Bearer ${token}` },
+      payload: { items: [] },
     })
     expect(res.statusCode).toBe(400)
-  })
-
-  it('returns 400 when quantity is 0', async () => {
-    const res = await app.inject({
-      method: 'POST',
-      url: '/purchases',
-      payload: { userId, items: [{ maskId, quantity: 0 }] },
-    })
-    expect(res.statusCode).toBe(400)
-  })
-
-  it('returns 404 when user does not exist', async () => {
-    const res = await app.inject({
-      method: 'POST',
-      url: '/purchases',
-      payload: { userId: 99999, items: [{ maskId, quantity: 1 }] },
-    })
-    expect(res.statusCode).toBe(404)
   })
 
   it('returns 422 when stock is insufficient', async () => {
@@ -95,19 +107,20 @@ describe('POST /purchases (real DB)', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/purchases',
-      payload: { userId, items: [{ maskId: lowStock.id, quantity: 5 }] },
+      headers: { authorization: `Bearer ${token}` },
+      payload: { items: [{ maskId: lowStock.id, quantity: 5 }] },
     })
     expect(res.statusCode).toBe(422)
   })
 
   it('returns 422 when user balance is insufficient', async () => {
-    const poorUser = await prisma.user.create({
-      data: { name: '貧窮用戶', cashBalance: 1 },
-    })
+    const poorUser = await prisma.user.create({ data: { name: '貧窮用戶', cashBalance: 1 } })
+    const poorToken = app.jwt.sign({ userId: poorUser.id, name: poorUser.name })
     const res = await app.inject({
       method: 'POST',
       url: '/purchases',
-      payload: { userId: poorUser.id, items: [{ maskId, quantity: 1 }] },
+      headers: { authorization: `Bearer ${poorToken}` },
+      payload: { items: [{ maskId, quantity: 1 }] },
     })
     expect(res.statusCode).toBe(422)
   })

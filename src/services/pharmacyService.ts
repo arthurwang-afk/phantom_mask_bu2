@@ -1,30 +1,23 @@
 import * as repo from '../repositories/pharmacyRepository.js'
+import { ValidationError, NotFoundError } from '../errors.js'
 
-export async function listPharmacies(day?: string, time?: string) {
-  if (time && !day) {
-    const err: any = new Error('day is required when time is provided')
-    err.statusCode = 400
-    throw err
-  }
-  if (day && time) {
-    return repo.findPharmaciesOpenAt(day, time)
-  }
-  return repo.findAllPharmacies()
+const VALID_DAYS = ['Mon', 'Tue', 'Wed', 'Thur', 'Fri', 'Sat', 'Sun']
+
+export async function listPharmacies(day?: string, time?: string, page = 1, pageSize = 20) {
+  if (time && !day) throw new ValidationError('day is required when time is provided')
+  if (day && !VALID_DAYS.includes(day)) throw new ValidationError(`day must be one of: ${VALID_DAYS.join(', ')}`)
+  if (day && time) return repo.findPharmaciesOpenAt(day, time, page, pageSize)
+  if (day) return repo.findPharmaciesOpenOnDay(day, page, pageSize)
+  return repo.findAllPharmacies(page, pageSize)
 }
 
-export async function listMasks(pharmacyId: number, sort?: string) {
+export async function listMasks(pharmacyId: number, sort?: string, page = 1, pageSize = 20) {
   if (sort && sort !== 'name' && sort !== 'price') {
-    const err: any = new Error('sort must be "name" or "price"')
-    err.statusCode = 400
-    throw err
+    throw new ValidationError('sort must be "name" or "price"')
   }
   const pharmacy = await repo.findPharmacyById(pharmacyId)
-  if (!pharmacy) {
-    const err: any = new Error(`Pharmacy ${pharmacyId} not found`)
-    err.statusCode = 404
-    throw err
-  }
-  return repo.findMasksByPharmacy(pharmacyId, (sort as 'name' | 'price') ?? 'name')
+  if (!pharmacy) throw new NotFoundError(`Pharmacy ${pharmacyId} not found`)
+  return repo.findMasksByPharmacy(pharmacyId, (sort as 'name' | 'price') ?? 'name', page, pageSize)
 }
 
 export async function listByMaskCount(filters: {
@@ -32,11 +25,11 @@ export async function listByMaskCount(filters: {
   maxPrice: number
   countMin?: number
   countMax?: number
+  page: number
+  pageSize: number
 }) {
   if (filters.minPrice > filters.maxPrice) {
-    const err: any = new Error('minPrice must be less than or equal to maxPrice')
-    err.statusCode = 400
-    throw err
+    throw new ValidationError('minPrice must be less than or equal to maxPrice')
   }
   return repo.findPharmaciesByMaskCount(filters)
 }
@@ -46,10 +39,6 @@ export async function upsertPharmacyMasks(
   masks: Array<{ name: string; price: number; stockQuantity: number }>,
 ) {
   const pharmacy = await repo.findPharmacyById(pharmacyId)
-  if (!pharmacy) {
-    const err: any = new Error(`Pharmacy ${pharmacyId} not found`)
-    err.statusCode = 404
-    throw err
-  }
+  if (!pharmacy) throw new NotFoundError(`Pharmacy ${pharmacyId} not found`)
   return repo.upsertMasks(pharmacyId, masks)
 }

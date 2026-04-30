@@ -39,14 +39,13 @@ interface RawUser {
 
 async function main() {
   const dataDir = join(__dirname, '../../data')
-  const pharmacies: RawPharmacy[] = JSON.parse(
-    readFileSync(join(dataDir, 'pharmacies.json'), 'utf-8'),
-  )
+  const pharmacies: RawPharmacy[] = JSON.parse(readFileSync(join(dataDir, 'pharmacies.json'), 'utf-8'))
   const users: RawUser[] = JSON.parse(readFileSync(join(dataDir, 'users.json'), 'utf-8'))
 
   console.log(`Seeding ${pharmacies.length} pharmacies...`)
 
   await prisma.$transaction(async (tx) => {
+    // upsert pharmacies + hours + masks
     for (const p of pharmacies) {
       const pharmacy = await tx.pharmacy.upsert({
         where: { name: p.name },
@@ -56,14 +55,12 @@ async function main() {
 
       await tx.pharmacyHours.deleteMany({ where: { pharmacyId: pharmacy.id } })
       const hours = parseOpeningHours(p.openingHours)
-      for (const h of hours) {
-        await tx.pharmacyHours.create({ data: { pharmacyId: pharmacy.id, ...h } })
-      }
+      await tx.pharmacyHours.createMany({ data: hours.map((h) => ({ pharmacyId: pharmacy.id, ...h })) })
 
       for (const mask of p.masks) {
         await tx.mask.upsert({
           where: { pharmacyId_name: { pharmacyId: pharmacy.id, name: mask.name } },
-          create: { pharmacyId: pharmacy.id, name: mask.name, price: mask.price, stockQuantity: mask.stockQuantity },
+          create: { pharmacyId: pharmacy.id, ...mask },
           update: { price: mask.price, stockQuantity: mask.stockQuantity },
         })
       }
@@ -79,18 +76,25 @@ async function main() {
     }
 
     console.log('Seeding purchase histories...')
+
+    // batch-load pharmacies, users, masks to avoid N+1
+    const allPharmacies = await tx.pharmacy.findMany({ select: { id: true, name: true } })
+    const allUsers = await tx.user.findMany({ select: { id: true, name: true } })
+    const allMasks = await tx.mask.findMany({ select: { id: true, name: true, pharmacyId: true } })
+
+    const pharmacyByName = new Map(allPharmacies.map((p) => [p.name, p]))
+    const userByName = new Map(allUsers.map((u) => [u.name, u]))
+    const maskKey = (pharmacyId: number, name: string) => `${pharmacyId}::${name}`
+    const maskByKey = new Map(allMasks.map((m) => [maskKey(m.pharmacyId, m.name), m]))
+
     for (const u of users) {
-      const user = await tx.user.findUnique({ where: { name: u.name } })
+      const user = userByName.get(u.name)
       if (!user) continue
-
       for (const ph of u.purchaseHistories) {
-        const pharmacy = await tx.pharmacy.findUnique({ where: { name: ph.pharmacyName } })
+        const pharmacy = pharmacyByName.get(ph.pharmacyName)
         if (!pharmacy) continue
-        const mask = await tx.mask.findFirst({
-          where: { pharmacyId: pharmacy.id, name: ph.maskName },
-        })
+        const mask = maskByKey.get(maskKey(pharmacy.id, ph.maskName))
         if (!mask) continue
-
         await tx.purchaseHistory.create({
           data: {
             userId: user.id,
@@ -113,8 +117,5 @@ async function main() {
 }
 
 main()
-  .catch((e) => {
-    console.error(e)
-    process.exit(1)
-  })
+  .catch((e) => { console.error(e); process.exit(1) })
   .finally(() => prisma.$disconnect())

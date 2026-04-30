@@ -7,6 +7,21 @@ const errorSchema = {
   },
 }
 
+const paginationSchema = {
+  type: 'object',
+  properties: {
+    page: { type: 'integer' },
+    pageSize: { type: 'integer' },
+    total: { type: 'integer' },
+    totalPages: { type: 'integer' },
+  },
+}
+
+const paginationQuery = {
+  page: { type: 'integer', minimum: 1, default: 1 },
+  pageSize: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
+}
+
 export const listPharmaciesSchema = {
   description: 'List pharmacies with optional day/time filter',
   tags: ['pharmacies'],
@@ -15,25 +30,25 @@ export const listPharmaciesSchema = {
     properties: {
       day: { type: 'string', enum: ['Mon', 'Tue', 'Wed', 'Thur', 'Fri', 'Sat', 'Sun'] },
       time: { type: 'string', pattern: '^([01]\\d|2[0-3]):[0-5]\\d$' },
+      ...paginationQuery,
     },
-    dependencies: {
-      time: { required: ['day'] },
-    },
+    dependencies: { time: { required: ['day'] } },
   },
   response: {
     200: {
-      type: 'array',
-      example: [
-        { id: 1, name: '康健藥局', cashBalance: 1000.0 },
-        { id: 2, name: '健康藥局', cashBalance: 500.0 },
-      ],
-      items: {
-        type: 'object',
-        properties: {
-          id: { type: 'integer' },
-          name: { type: 'string' },
-          cashBalance: { type: 'number' },
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'integer' },
+              name: { type: 'string' },
+            },
+          },
         },
+        pagination: paginationSchema,
       },
     },
     400: errorSchema,
@@ -41,36 +56,37 @@ export const listPharmaciesSchema = {
 }
 
 export const listMasksSchema = {
-  description: 'List masks for a pharmacy with optional sort',
+  description: 'List masks for a pharmacy with optional sort and pagination',
   tags: ['pharmacies'],
   params: {
     type: 'object',
     required: ['id'],
-    properties: {
-      id: { type: 'integer' },
-    },
+    properties: { id: { type: 'integer' } },
   },
   querystring: {
     type: 'object',
     properties: {
       sort: { type: 'string', enum: ['name', 'price'] },
+      ...paginationQuery,
     },
   },
   response: {
     200: {
-      type: 'array',
-      example: [
-        { id: 1, name: '棉護口罩（藍色）3入', price: 10.0, stockQuantity: 50 },
-        { id: 2, name: '醫守口罩（白色）6入', price: 25.0, stockQuantity: 30 },
-      ],
-      items: {
-        type: 'object',
-        properties: {
-          id: { type: 'integer' },
-          name: { type: 'string' },
-          price: { type: 'number' },
-          stockQuantity: { type: 'integer' },
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'integer' },
+              name: { type: 'string' },
+              price: { type: 'number' },
+              stockQuantity: { type: 'integer' },
+            },
+          },
         },
+        pagination: paginationSchema,
       },
     },
     400: errorSchema,
@@ -89,23 +105,25 @@ export const maskCountSchema = {
       maxPrice: { type: 'number', minimum: 0 },
       countMin: { type: 'integer', minimum: 0 },
       countMax: { type: 'integer', minimum: 0 },
+      ...paginationQuery,
     },
   },
   response: {
     200: {
-      type: 'array',
-      example: [
-        { id: 1, name: '康健藥局', cashBalance: 1000.0, maskCount: 5 },
-        { id: 2, name: '健康藥局', cashBalance: 500.0, maskCount: 3 },
-      ],
-      items: {
-        type: 'object',
-        properties: {
-          id: { type: 'integer' },
-          name: { type: 'string' },
-          cashBalance: { type: 'number' },
-          maskCount: { type: 'integer' },
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'integer' },
+              name: { type: 'string' },
+              maskCount: { type: 'integer' },
+            },
+          },
         },
+        pagination: paginationSchema,
       },
     },
     400: errorSchema,
@@ -113,14 +131,13 @@ export const maskCountSchema = {
 }
 
 export const upsertMasksSchema = {
-  description: 'Batch upsert masks for a pharmacy (create new or update existing by name; masks not in the list are preserved)',
+  description: 'Batch upsert masks for a pharmacy (requires auth)',
   tags: ['pharmacies'],
+  security: [{ bearerAuth: [] }],
   params: {
     type: 'object',
     required: ['id'],
-    properties: {
-      id: { type: 'integer' },
-    },
+    properties: { id: { type: 'integer' } },
   },
   body: {
     type: 'object',
@@ -144,10 +161,6 @@ export const upsertMasksSchema = {
   response: {
     200: {
       type: 'array',
-      example: [
-        { id: 1, pharmacyId: 1, name: '棉護口罩（藍色）3入', price: 25.0, stockQuantity: 100 },
-        { id: 2, pharmacyId: 1, name: '醫守口罩（白色）6入', price: 15.0, stockQuantity: 50 },
-      ],
       items: {
         type: 'object',
         properties: {
@@ -160,6 +173,7 @@ export const upsertMasksSchema = {
       },
     },
     400: errorSchema,
+    401: errorSchema,
     404: errorSchema,
   },
 }

@@ -5,6 +5,7 @@ import { prisma, truncateAll } from '../helpers/db.js'
 describe('PATCH /masks/:id/stock (real DB)', () => {
   let app: ReturnType<typeof buildApp>
   let maskId: number
+  let token: string
 
   beforeAll(async () => {
     await truncateAll()
@@ -17,8 +18,11 @@ describe('PATCH /masks/:id/stock (real DB)', () => {
     })
     maskId = mask.id
 
+    const user = await prisma.user.create({ data: { name: '庫存測試用戶', cashBalance: 0 } })
+
     app = buildApp()
     await app.ready()
+    token = app.jwt.sign({ userId: user.id, name: user.name })
   })
 
   afterAll(async () => {
@@ -26,10 +30,20 @@ describe('PATCH /masks/:id/stock (real DB)', () => {
     await truncateAll()
   })
 
+  it('returns 401 without token', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/masks/${maskId}/stock`,
+      payload: { adjustment: 5 },
+    })
+    expect(res.statusCode).toBe(401)
+  })
+
   it('increases stock by a positive adjustment', async () => {
     const res = await app.inject({
       method: 'PATCH',
       url: `/masks/${maskId}/stock`,
+      headers: { authorization: `Bearer ${token}` },
       payload: { adjustment: 5 },
     })
     expect(res.statusCode).toBe(200)
@@ -41,6 +55,7 @@ describe('PATCH /masks/:id/stock (real DB)', () => {
     const res = await app.inject({
       method: 'PATCH',
       url: `/masks/${maskId}/stock`,
+      headers: { authorization: `Bearer ${token}` },
       payload: { adjustment: -10 },
     })
     expect(res.statusCode).toBe(200)
@@ -52,6 +67,7 @@ describe('PATCH /masks/:id/stock (real DB)', () => {
     const res = await app.inject({
       method: 'PATCH',
       url: `/masks/${maskId}/stock`,
+      headers: { authorization: `Bearer ${token}` },
       payload: { adjustment: 1 },
     })
     const body = JSON.parse(res.body)
@@ -65,6 +81,7 @@ describe('PATCH /masks/:id/stock (real DB)', () => {
     const res = await app.inject({
       method: 'PATCH',
       url: `/masks/${maskId}/stock`,
+      headers: { authorization: `Bearer ${token}` },
       payload: { adjustment: 0 },
     })
     expect(res.statusCode).toBe(400)
@@ -74,6 +91,7 @@ describe('PATCH /masks/:id/stock (real DB)', () => {
     const res = await app.inject({
       method: 'PATCH',
       url: `/masks/${maskId}/stock`,
+      headers: { authorization: `Bearer ${token}` },
       payload: { adjustment: -9999 },
     })
     expect(res.statusCode).toBe(422)
@@ -83,6 +101,7 @@ describe('PATCH /masks/:id/stock (real DB)', () => {
     const res = await app.inject({
       method: 'PATCH',
       url: '/masks/99999/stock',
+      headers: { authorization: `Bearer ${token}` },
       payload: { adjustment: 5 },
     })
     expect(res.statusCode).toBe(404)

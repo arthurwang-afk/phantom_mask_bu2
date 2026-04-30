@@ -8,26 +8,24 @@ const errorSchema = {
 }
 
 export const adjustStockSchema = {
-  description: 'Adjust mask stock quantity',
+  description: 'Adjust mask stock quantity (requires auth)',
   tags: ['masks'],
+  security: [{ bearerAuth: [] }],
   params: {
     type: 'object',
     required: ['id'],
-    properties: {
-      id: { type: 'integer' },
-    },
+    properties: { id: { type: 'integer' } },
   },
   body: {
     type: 'object',
     required: ['adjustment'],
     properties: {
-      adjustment: { type: 'integer' },
+      adjustment: { type: 'integer', not: { const: 0 } },
     },
   },
   response: {
     200: {
       type: 'object',
-      example: { id: 1, pharmacyId: 1, name: '棉護口罩（藍色）3入', price: 10.0, stockQuantity: 25 },
       properties: {
         id: { type: 'integer' },
         pharmacyId: { type: 'integer' },
@@ -37,6 +35,7 @@ export const adjustStockSchema = {
       },
     },
     400: errorSchema,
+    401: errorSchema,
     404: errorSchema,
     422: errorSchema,
   },
