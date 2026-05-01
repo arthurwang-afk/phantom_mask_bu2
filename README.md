@@ -39,6 +39,46 @@
 
 ---
 
+## 全面分析報告修正記錄
+
+依「系統分析師 / 測試工程師 / 架構師」三視角分析報告，共 28 項問題，**22 項已修正，5 項評估後保留**。
+
+### ✅ 已修正（22 項）
+
+| # | 視角 | 問題 | 修正內容 |
+|---|------|------|---------|
+| 系統 #1 | 系統分析 | 完全無身分驗證，任意 userId 可消費他人餘額 | 新增 JWT 認證層；`POST /auth/token` 取得 token；購買／庫存調整／口罩 upsert 需帶 `Authorization: Bearer` |
+| 系統 #2 | 系統分析 | 浮點數金錢計算（`Number * quantity`）有精度誤差 | 全面改用 `Prisma.Decimal` 四則運算，財務計算不經 float |
+| 系統 #3 | 系統分析 | 重複 maskId 各自通過庫存檢查但合計超賣 | 購買前用 `Map` 合併相同 maskId 的數量，再統一做庫存驗證 |
+| 系統 #5 | 系統分析 | `day=Mon`（無 time）回傳全部藥局 | 新增 `findPharmaciesOpenOnDay`，只傳 day 時改查有該日營業時段的藥局 |
+| 系統 #6 | 系統分析 | 列表 API 無分頁，大資料量一次回傳全部 | 所有列表端點統一加入 `{ data, pagination: { page, pageSize, total, totalPages } }` |
+| 系統 #7 | 系統分析 | 日期時區假設不一致（start 用本機時區、end 硬寫 UTC） | 起訖時間均明確使用 UTC：`new Date(start + 'T00:00:00.000Z')` / `new Date(end + 'T23:59:59.999Z')` |
+| 系統 #8 | 系統分析 | `cashBalance` 財務欄位公開暴露在藥局列表 | 所有公開 API 的 Prisma select 移除 `cashBalance` |
+| 測試 #1 | 測試工程 | `buildTxMock` 定義後從未呼叫（死碼） | 移除死碼，保持測試檔案整潔 |
+| 測試 #2 | 測試工程 | Mock 型別用 `number`，無法覆蓋 `Prisma.Decimal` 精度問題 | 全部改為 `new Prisma.Decimal('15.00')`，型別與生產一致 |
+| 測試 #5 | 測試工程 | 無重複 maskId 超賣情境測試 | 新增整合測試：`[{ maskId, qty:2 }, { maskId, qty:3 }]` 庫存 4 應回傳 422 |
+| 測試 #6 | 測試工程 | 搜尋特殊字元（`&`、`!`、`|`）無測試 | 新增整合測試：傳入 `%26`、`%7C` 等特殊字元應正常回傳 200 |
+| 測試 #7 | 測試工程 | `truncateAll` 5 個 deleteMany 非原子，中途失敗殘留髒資料 | 改為 `prisma.$transaction([...deleteMany()])` 原子執行 |
+| 架構 #2 | 架構 | 所有 `throw` 用 `const err: any = new Error(); err.statusCode=xxx`，型別不安全 | 新增 `src/errors.ts`：`AppError` → `NotFoundError(404)` / `ValidationError(400)` / `InsufficientError(422)` |
+| 架構 #3 | 架構 | `maskService.adjustStock` TOCTOU 競態：樂觀鎖失敗回未處理的 500 | 捕捉 Prisma `P2025`（RecordNotFound）轉換為 `InsufficientError`（422） |
+| 架構 #5 | 架構 | `time && !day` 驗證同時出現在 route 層與 service 層（違反 DRY） | 移除 route 層重複判斷，保留 service 層單一責任 |
+| 架構 #6 | 架構 | Dockerfile 生產環境用 `tsx`（開發工具），有額外效能開銷 | 改為 multi-stage build：builder 執行 `tsc`，runner 以 `node dist/server.js` 啟動 |
+| 架構 #7 | 架構 | `helmet({ contentSecurityPolicy: false })` 完全關閉 XSS 防護 | 啟用 CSP：`defaultSrc: ["'self'"]`，移除 `false` 覆寫 |
+| 架構 #9 | 架構 | `docker-compose.yml` 硬編碼 `POSTGRES_PASSWORD: postgres` | 改為 `${POSTGRES_PASSWORD:?...}` 與 `${JWT_SECRET:?...}`，未設定環境變數時啟動失敗並提示 |
+| 架構 #10 | 架構 | Seed 巢狀迴圈逐筆 `findUnique`（N+1 問題） | 改為批次 `findMany` 後建立 `Map`，所有關聯查找改為 O(1) Map lookup |
+
+### ❌ 評估後保留（5 項）
+
+| # | 視角 | 問題 | 保留原因 |
+|---|------|------|---------|
+| 系統 #4 | 系統分析 | Seed 直接寫 `PurchaseHistory`，餘額不反映歷史交易 | 原始 JSON 中 `cashBalance` 已是所有交易後的最終值；若走服務層會對初始餘額雙重扣款，造成反而不一致 |
+| 測試 #3 | 測試工程 | 無真正並發競態測試（兩 TX 同時搶最後一件庫存） | 樂觀鎖（P2025）已防止超賣；真正的並發測試需 `pg_advisory_lock` 或外部壓測工具，超出單元/整合測試範疇 |
+| 測試 #4 | 測試工程 | Repository 層無獨立單元測試 | Repository 的 FTS 查詢與 HAVING 條件已由整合測試（真實 DB）完整覆蓋，重複撰寫 mock 測試價值低 |
+| 架構 #1 | 架構 | Global Prisma Singleton 違反依賴注入原則 | Prisma 官方文件推薦單例避免連線池耗盡；引入 DI 容器（如 `tsyringe`）會增加架構複雜度，超出當前需求 |
+| 架構 #4 | 架構 | Repository 無 TypeScript 介面定義 | TypeScript 結構型別（structural typing）已提供足夠的型別約束；加介面為純重構，不影響行為正確性 |
+
+---
+
 ## 一鍵啟動（Docker，推薦）
 
 **前置需求：已安裝並啟動 [Docker Desktop](https://www.docker.com/products/docker-desktop/)**
@@ -137,6 +177,7 @@ npm run dev
 | 變數 | 說明 | 預設值 |
 |------|------|--------|
 | `DATABASE_URL` | PostgreSQL 連線字串 | `postgresql://postgres:postgres@localhost:5432/phantom_mask?schema=public` |
+| `JWT_SECRET` | JWT 簽名金鑰（生產環境必填） | — |
 | `PORT` | Server 監聽 port | `3000` |
 | `NODE_ENV` | 執行環境 | `development` |
 
@@ -164,8 +205,11 @@ npm run dev
 ## 測試
 
 ```bash
-# 執行所有測試（60 個，不需 DB）
+# 單元測試（39 個，不需 DB）
 npm test
+
+# 整合測試（47 個，需 PostgreSQL）
+npm run test:integration
 
 # 產生 coverage 報告
 npm run test:coverage
